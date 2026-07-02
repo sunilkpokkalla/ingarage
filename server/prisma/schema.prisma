@@ -1,0 +1,173 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  plan      String   @default("STARTER")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+  jobs      Job[]
+  parts     Part[]
+  timeLogs  TimeLog[]
+  invoices  Invoice[]
+  
+  paymentSettings TenantPaymentSetting?
+  transactions    PaymentTransaction[]
+  subscription    PlatformSubscription?
+}
+
+model User {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("TECHNICIAN") // OWNER, MANAGER, TECHNICIAN
+  hourlyRate Float?  // For technicians
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  timeLogs  TimeLog[]
+  jobsAssigned Job[] @relation("JobTechnicians")
+  jobsEstimated Job[] @relation("JobEstimator")
+}
+
+model Job {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  vehicle     String
+  customer    String
+  insurer     String?
+  vin         String?
+  status      String   @default("Intake")
+  stage       Int      @default(0) // 0-100 percentage
+  eta         DateTime?
+  priority    String   @default("Normal")
+  
+  estimatorId String?
+  estimator   User?    @relation("JobEstimator", fields: [estimatorId], references: [id])
+  technicians User[]   @relation("JobTechnicians")
+
+  laborHours  Float    @default(0)
+  laborRate   Float    @default(0)
+  discount    Float    @default(0)
+  
+  photos      String   @default("[]") // JSON string array
+  damages     String   @default("[]") // JSON string array
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  timeLogs    TimeLog[]
+  parts       Part[]
+  invoice     Invoice?
+}
+
+model TimeLog {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  jobId       String
+  job         Job      @relation(fields: [jobId], references: [id])
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  startTime   DateTime @default(now())
+  endTime     DateTime?
+  laborRate   Float
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Part {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  jobId       String
+  job         Job      @relation(fields: [jobId], references: [id])
+  
+  supplier    String
+  name        String
+  number      String?
+  cost        Float    @default(0)
+  status      String   @default("Ordered") // Ordered, InTransit, Received, Installed
+  eta         DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Invoice {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  jobId       String   @unique
+  job         Job      @relation(fields: [jobId], references: [id])
+  
+  subtotal    Float    @default(0)
+  discount    Float    @default(0)
+  paid        Float    @default(0)
+  status      String   @default("Draft") // Draft, Sent, PartiallyPaid, Paid
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  paymentTransactions PaymentTransaction[]
+}
+
+model TenantPaymentSetting {
+  id              String   @id @default(cuid())
+  tenantId        String   @unique
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  provider        String   @default("STRIPE") // STRIPE, PAYPAL, SQUARE, RAZORPAY
+  publicKey       String?  // Safe to expose to frontend
+  encryptedSecret String?  // Encrypted backend key
+  webhookSecret   String?
+  isActive        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model PaymentTransaction {
+  id              String   @id @default(cuid())
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  invoiceId       String
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id])
+  transactionId   String?  // From the payment gateway (e.g. pi_12345)
+  amount          Float
+  currency        String   @default("USD")
+  status          String   @default("PENDING") // PENDING, COMPLETED, FAILED, REFUNDED
+  provider        String
+  paymentMethod   String?  // credit_card, wallet, bank
+  errorMessage    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model PlatformSubscription {
+  id                 String   @id @default(cuid())
+  tenantId           String   @unique
+  tenant             Tenant   @relation(fields: [tenantId], references: [id])
+  stripeCustomerId   String?  // Customer ID in your Master Stripe Account
+  stripeSubscriptionId String?
+  plan               String   @default("STARTER")
+  status             String   @default("TRIAL") // TRIAL, ACTIVE, PAST_DUE, CANCELED
+  currentPeriodEnd   DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
