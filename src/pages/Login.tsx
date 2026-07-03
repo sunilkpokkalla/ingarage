@@ -5,8 +5,8 @@ import api from '../lib/api';
 import { CarFront, LockKeyhole, ArrowLeft } from 'lucide-react';
 
 export default function Login() {
-  const [email, setEmail] = useState('demo@ingarage.com');
-  const [password, setPassword] = useState('demo123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   

@@ -10,7 +10,9 @@ import {
 } from '@stripe/react-stripe-js';
 import { Receipt, CarFront, AlertCircle, CheckCircle2 } from 'lucide-react';
 
-const API_URL = 'http://localhost:3001/api';
+import api from '../../lib/api';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 // The actual payment form component
 function CheckoutForm({ onSuccess }: { clientSecret: string, onSuccess: () => void }) {
