@@ -21,7 +21,9 @@ model Tenant {
   parts     Part[]
   timeLogs  TimeLog[]
   invoices  Invoice[]
-  
+  customers Customer[]
+  documents Document[]
+
   paymentSettings TenantPaymentSetting?
   transactions    PaymentTransaction[]
   subscription    PlatformSubscription?
@@ -39,9 +41,49 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Password reset / invite flow
+  resetToken       String?   @unique
+  resetTokenExpiry DateTime?
+
   timeLogs  TimeLog[]
   jobsAssigned Job[] @relation("JobTechnicians")
   jobsEstimated Job[] @relation("JobEstimator")
+
+  @@index([tenantId])
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  name      String
+  email     String?
+  phone     String?
+  address   String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  jobs      Job[]
+
+  @@index([tenantId])
+}
+
+model Document {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  jobId        String?
+  job          Job?     @relation(fields: [jobId], references: [id])
+  name         String
+  mimeType     String
+  size         Int
+  data         Bytes
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([jobId])
 }
 
 model Job {
@@ -50,13 +92,15 @@ model Job {
   tenant      Tenant   @relation(fields: [tenantId], references: [id])
   vehicle     String
   customer    String
+  customerId  String?
+  customerRef Customer? @relation(fields: [customerId], references: [id])
   insurer     String?
   vin         String?
   status      String   @default("Intake")
   stage       Int      @default(0) // 0-100 percentage
   eta         DateTime?
   priority    String   @default("Normal")
-  
+
   estimatorId String?
   estimator   User?    @relation("JobEstimator", fields: [estimatorId], references: [id])
   technicians User[]   @relation("JobTechnicians")
@@ -64,7 +108,7 @@ model Job {
   laborHours  Float    @default(0)
   laborRate   Float    @default(0)
   discount    Float    @default(0)
-  
+
   photos      String   @default("[]") // JSON string array
   damages     String   @default("[]") // JSON string array
 
@@ -74,6 +118,10 @@ model Job {
   timeLogs    TimeLog[]
   parts       Part[]
   invoice     Invoice?
+  documents   Document[]
+
+  @@index([tenantId])
+  @@index([customerId])
 }
 
 model TimeLog {
@@ -84,13 +132,16 @@ model TimeLog {
   job         Job      @relation(fields: [jobId], references: [id])
   userId      String
   user        User     @relation(fields: [userId], references: [id])
-  
+
   startTime   DateTime @default(now())
   endTime     DateTime?
   laborRate   Float
-  
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([jobId])
 }
 
 model Part {
@@ -99,7 +150,7 @@ model Part {
   tenant      Tenant   @relation(fields: [tenantId], references: [id])
   jobId       String
   job         Job      @relation(fields: [jobId], references: [id])
-  
+
   supplier    String
   name        String
   number      String?
@@ -109,6 +160,9 @@ model Part {
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([jobId])
 }
 
 model Invoice {
@@ -117,7 +171,7 @@ model Invoice {
   tenant      Tenant   @relation(fields: [tenantId], references: [id])
   jobId       String   @unique
   job         Job      @relation(fields: [jobId], references: [id])
-  
+
   subtotal    Float    @default(0)
   discount    Float    @default(0)
   paid        Float    @default(0)
@@ -125,8 +179,10 @@ model Invoice {
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   paymentTransactions PaymentTransaction[]
+
+  @@index([tenantId])
 }
 
 model TenantPaymentSetting {
@@ -148,7 +204,7 @@ model PaymentTransaction {
   tenant          Tenant   @relation(fields: [tenantId], references: [id])
   invoiceId       String
   invoice         Invoice  @relation(fields: [invoiceId], references: [id])
-  transactionId   String?  // From the payment gateway (e.g. pi_12345)
+  transactionId   String?  @unique // From the payment gateway (e.g. pi_12345)
   amount          Float
   currency        String   @default("USD")
   status          String   @default("PENDING") // PENDING, COMPLETED, FAILED, REFUNDED
@@ -157,6 +213,9 @@ model PaymentTransaction {
   errorMessage    String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([invoiceId])
 }
 
 model PlatformSubscription {

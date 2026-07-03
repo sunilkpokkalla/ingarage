@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CreditCard, FloppyDisk, WarningCircle, ShieldCheck } from '@phosphor-icons/react';
+import { CreditCard, FloppyDisk, WarningCircle, ShieldCheck, UsersThree, PaperPlaneTilt } from '@phosphor-icons/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
 
@@ -10,6 +10,30 @@ export default function Settings() {
   const [secretKey, setSecretKey] = useState('');
   const [webhookSecret, setWebhookSecret] = useState('');
   const [saveMessage, setSaveMessage] = useState({ text: '', type: '' });
+
+  const [inviteName, setInviteName] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState('TECHNICIAN');
+  const [inviteMessage, setInviteMessage] = useState({ text: '', type: '' });
+
+  const { data: team = [] } = useQuery({
+    queryKey: ['team'],
+    queryFn: () => api.get('/users').then((res: any) => res.data)
+  });
+
+  const inviteMutation = useMutation({
+    mutationFn: (data: any) => api.post('/users/invite', data),
+    onSuccess: (_res, vars: any) => {
+      queryClient.invalidateQueries({ queryKey: ['team'] });
+      setInviteMessage({ text: `Invite sent to ${vars.email}.`, type: 'success' });
+      setInviteName('');
+      setInviteEmail('');
+      setTimeout(() => setInviteMessage({ text: '', type: '' }), 4000);
+    },
+    onError: (err: any) => {
+      setInviteMessage({ text: err.response?.data?.error || 'Failed to send invite', type: 'error' });
+    }
+  });
 
   const { data: settings } = useQuery({
     queryKey: ['paymentSettings'],
@@ -168,6 +192,85 @@ export default function Settings() {
               <FloppyDisk size={18} weight="bold" />
               {saveMutation.isPending ? 'Saving...' : 'Save Configuration'}
             </button>
+          </div>
+        </section>
+
+        {/* Team Section */}
+        <section className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 relative overflow-hidden">
+          <div className="flex items-center gap-4 mb-8">
+            <div className="w-12 h-12 rounded-xl bg-zinc-950 flex items-center justify-center text-brand-400 border border-zinc-800">
+              <UsersThree size={24} weight="duotone" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-zinc-50 font-['Outfit']">Team</h2>
+              <p className="text-zinc-400 text-sm">Invite managers and technicians to your shop.</p>
+            </div>
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              inviteMutation.mutate({ name: inviteName, email: inviteEmail, role: inviteRole });
+            }}
+            className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8"
+          >
+            <input
+              type="text"
+              required
+              placeholder="Full name"
+              value={inviteName}
+              onChange={e => setInviteName(e.target.value)}
+              className="bg-zinc-950 border border-zinc-800 text-zinc-100 rounded-xl px-4 py-3 focus:outline-none focus:border-brand-500 transition-colors"
+            />
+            <input
+              type="email"
+              required
+              placeholder="Email address"
+              value={inviteEmail}
+              onChange={e => setInviteEmail(e.target.value)}
+              className="bg-zinc-950 border border-zinc-800 text-zinc-100 rounded-xl px-4 py-3 focus:outline-none focus:border-brand-500 transition-colors"
+            />
+            <select
+              value={inviteRole}
+              onChange={e => setInviteRole(e.target.value)}
+              className="bg-zinc-950 border border-zinc-800 text-zinc-100 rounded-xl px-4 py-3 focus:outline-none focus:border-brand-500 transition-colors"
+            >
+              <option value="TECHNICIAN">Technician</option>
+              <option value="MANAGER">Manager</option>
+            </select>
+            <button
+              type="submit"
+              disabled={inviteMutation.isPending}
+              className="flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-400 text-zinc-950 px-6 py-3 rounded-xl font-bold transition-all disabled:opacity-50"
+            >
+              <PaperPlaneTilt size={18} weight="bold" />
+              {inviteMutation.isPending ? 'Sending...' : 'Send Invite'}
+            </button>
+          </form>
+
+          {inviteMessage.text && (
+            <p className={`text-sm font-bold mb-6 ${inviteMessage.type === 'success' ? 'text-brand-500' : 'text-red-400'}`}>
+              {inviteMessage.text}
+            </p>
+          )}
+
+          <div className="divide-y divide-zinc-800 border border-zinc-800 rounded-2xl overflow-hidden">
+            {team.map((member: any) => (
+              <div key={member.id} className="flex items-center justify-between px-5 py-4 bg-zinc-950/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-brand-400 font-bold">
+                    {member.name.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-zinc-100">{member.name}</p>
+                    <p className="text-xs text-zinc-500 font-mono">{member.email}</p>
+                  </div>
+                </div>
+                <span className="text-xs font-bold uppercase tracking-widest text-zinc-400 bg-zinc-900 border border-zinc-800 px-3 py-1 rounded-full">
+                  {member.role}
+                </span>
+              </div>
+            ))}
           </div>
         </section>
 

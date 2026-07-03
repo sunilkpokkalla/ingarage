@@ -12,7 +12,7 @@ router.get('/invoices/:id', async (req: Request, res: Response): Promise<void> =
     const { id } = req.params;
     
     const invoice = await prisma.invoice.findUnique({
-      where: { id },
+      where: { id: String(id) },
       include: {
         tenant: true,
         job: {
@@ -65,7 +65,7 @@ router.post('/invoices/:id/pay', async (req: Request, res: Response): Promise<vo
     const { id } = req.params;
     
     const invoice = await prisma.invoice.findUnique({
-      where: { id },
+      where: { id: String(id) },
     });
 
     if (!invoice) {
@@ -95,7 +95,7 @@ router.post('/invoices/:id/pay', async (req: Request, res: Response): Promise<vo
 
     // Decrypt the shop owner's secret key
     const stripeSecretKey = decrypt(settings.encryptedSecret);
-    const stripe = new Stripe(stripeSecretKey, { apiVersion: '2023-10-16' });
+    const stripe = new Stripe(stripeSecretKey, { apiVersion: '2025-02-24.acacia' });
 
     // Create payment intent
     const paymentIntent = await stripe.paymentIntents.create({

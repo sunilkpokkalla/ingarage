@@ -12,6 +12,7 @@ import {
   Check,
   Plus
 } from '@phosphor-icons/react';
+import NewJobModal from '../components/NewJobModal';
 
 function currency(value: number) {
   return new Intl.NumberFormat('en-US', {
@@ -30,23 +31,20 @@ export default function Dashboard() {
     }
   });
 
+  const { data: stats } = useQuery({
+    queryKey: ['stats'],
+    queryFn: async () => {
+      const res = await api.get('/stats');
+      return res.data;
+    }
+  });
+
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const activeJob = selectedJobId 
     ? jobs.find((j: any) => j.id === selectedJobId) 
     : jobs[0];
-
-  const handleCreateMockJob = async () => {
-    await api.post('/jobs', {
-      vehicle: '2023 Toyota Camry XSE',
-      customer: 'Maya Hernandez',
-      insurer: 'State Mutual',
-      vin: '4T1K61AK9PU122489',
-      priority: 'Insurance claim',
-      damages: ['Front bumper cover cracked', 'Left fender blend required'],
-    });
-    window.location.reload();
-  };
 
   return (
     <div className="flex-1 overflow-y-auto px-8 py-10 space-y-12">
@@ -68,7 +66,7 @@ export default function Dashboard() {
             <Bell size={18} />
           </button>
           <button 
-            onClick={handleCreateMockJob}
+            onClick={() => setIsModalOpen(true)}
             className="flex items-center gap-2 bg-brand-500 hover:bg-brand-400 text-zinc-950 px-5 py-2.5 rounded-xl font-bold transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_25px_rgba(16,185,129,0.4)]"
           >
             <Plus size={16} weight="bold" />
@@ -77,12 +75,12 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* Metrics Row - No Card Boxes, Just logic separation */}
+      {/* Metrics Row */}
       <section className="grid grid-cols-1 md:grid-cols-4 gap-8 divide-x divide-zinc-800/50">
-        <MetricCard icon={<TrendUp size={24} weight="duotone" className="text-blue-400" />} title="Active Jobs" value={jobs.length.toString()} detail="Currently in shop" />
-        <MetricCard icon={<Clock size={24} weight="duotone" className="text-amber-400" />} title="Labor Captured" value="0h" detail="Auto-costed" />
-        <MetricCard icon={<Package size={24} weight="duotone" className="text-purple-400" />} title="Parts in Transit" value="0" detail="Awaiting delivery" />
-        <MetricCard icon={<CreditCard size={24} weight="duotone" className="text-emerald-400" />} title="Online Payments" value="$0" detail="Last 7 days" />
+        <MetricCard icon={<TrendUp size={24} weight="duotone" className="text-blue-400" />} title="Active Jobs" value={(stats?.activeJobs || 0).toString()} detail="Currently in shop" />
+        <MetricCard icon={<Clock size={24} weight="duotone" className="text-amber-400" />} title="Labor Captured" value={`${stats?.laborCaptured || 0}h`} detail="Auto-costed" />
+        <MetricCard icon={<Package size={24} weight="duotone" className="text-purple-400" />} title="Parts in Transit" value={(stats?.partsInTransit || 0).toString()} detail="Awaiting delivery" />
+        <MetricCard icon={<CreditCard size={24} weight="duotone" className="text-emerald-400" />} title="Online Payments" value={currency(stats?.revenue || 0)} detail="Last 7 days" />
       </section>
 
       {/* Main Board */}
@@ -191,6 +189,7 @@ export default function Dashboard() {
           )}
         </div>
       </section>
+      <NewJobModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
 }

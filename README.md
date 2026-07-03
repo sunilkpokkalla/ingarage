@@ -1,73 +1,77 @@
-# React + TypeScript + Vite
+# InGarage
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Multi-tenant shop management for auto-repair / collision shops: jobs, labor tracking, parts, invoices, customers, documents, and online payments via Stripe.
 
-Currently, two official plugins are available:
+- **Frontend**: React 19 + TypeScript + Vite + Tailwind 4 (`src/`)
+- **Backend**: Express + Prisma + PostgreSQL (Supabase) (`server/`)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## One-time setup after the July 2026 security overhaul
 
-## React Compiler
+The following steps are REQUIRED before the app will run again:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 1. Rotate the database password
+The old password was committed to git in plain text — treat it as compromised.
+In Supabase: **Settings → Database → Reset database password**, then update
+`DATABASE_URL` and `DIRECT_URL` in `server/.env`.
+**Important:** if the password contains special characters (`@`, `#`, etc.), URL-encode them (`@` → `%40`).
 
-## Expanding the ESLint configuration
+### 2. Push the new schema and install server deps
+New models were added (Customer, Document, password-reset fields, indexes):
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+cd server
+npm install          # picks up new deps: zod, nodemailer (bcrypt was removed)
+npx prisma db push   # applies schema changes to Supabase
+npx prisma generate
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 3. Re-enter Stripe keys in Settings
+`ENCRYPTION_KEY` is now a real secret (it previously fell back to a value in
+source code). Any Stripe secret keys saved before this change can no longer be
+decrypted — re-enter them once in **Settings → Payment Gateway**.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### 4. (Optional) Configure SMTP
+Password reset, team invites, and invoice emails send via SMTP when
+`SMTP_HOST` etc. are set in `server/.env`. Until then, emails are printed to
+the server console so you can copy the links during development.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Development
+
+```bash
+# API (port 3001)
+cd server && npm run dev
+
+# Frontend (port 5173)
+npm run dev
 ```
+
+## Production
+
+```bash
+# API
+cd server && npm run build && npm start
+
+# Frontend
+npm run build   # outputs to dist/
+```
+
+Set these in the server's production environment: `DATABASE_URL`, `DIRECT_URL`,
+`JWT_SECRET`, `ENCRYPTION_KEY`, `CORS_ORIGIN` (your frontend URL), `APP_URL`
+(your frontend URL, used in emailed links), `NODE_ENV=production`, and the
+`SMTP_*` variables. For the frontend, set `VITE_API_URL` to your API URL
+(see `.env.example`).
+
+## Tests
+
+```bash
+cd server && npm test
+```
+
+## Security notes
+
+- JWT secret and AES-256 encryption key are required env vars — the server exits at boot if they're missing (no insecure fallbacks).
+- CORS is restricted to `CORS_ORIGIN`; security headers and per-IP rate limiting (stricter on `/api/auth/*`) are applied.
+- All route input is validated with zod; invoice/job updates only accept whitelisted fields.
+- Payment settings can only be modified by OWNER; invites by OWNER/MANAGER.
+- Stripe webhooks are signature-verified per tenant and idempotent (retries can't double-count payments).
+- Documents are stored in Postgres (10 MB/file cap) and are tenant-scoped like everything else.

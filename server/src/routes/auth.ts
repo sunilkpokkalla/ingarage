@@ -1,21 +1,50 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
+import crypto from 'crypto';
+import { z } from 'zod';
+import { prisma } from '../lib/prisma';
+import { config } from '../config';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { validate } from '../middleware/validate';
+import { sendMail } from '../utils/mailer';
 
 const router = Router();
-const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-collisionpro-dev-key';
+
+const registerSchema = z.object({
+  tenantName: z.string().min(1).max(100),
+  userName: z.string().min(1).max(100),
+  email: z.string().email().max(254),
+  password: z.string().min(8, 'Password must be at least 8 characters').max(128),
+});
+
+const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+});
+
+const forgotSchema = z.object({
+  email: z.string().email(),
+});
+
+const resetSchema = z.object({
+  token: z.string().min(32),
+  password: z.string().min(8, 'Password must be at least 8 characters').max(128),
+});
+
+function signToken(user: { id: string; tenantId: string; role: string }): string {
+  return jwt.sign(
+    { id: user.id, tenantId: user.tenantId, role: user.role },
+    config.jwtSecret,
+    { expiresIn: '7d' }
+  );
+}
 
 router.post('/register', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { tenantName, userName, email, password } = req.body;
-    
-    if (!tenantName || !userName || !email || !password) {
-      res.status(400).json({ error: 'Missing required fields' });
-      return;
-    }
+    const body = validate(registerSchema, req.body, res);
+    if (!body) return;
+    const { tenantName, userName, email, password } = body;
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
@@ -33,21 +62,15 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
             name: userName,
             email,
             password: hashedPassword,
-            role: 'OWNER'
-          }
-        }
+            role: 'OWNER',
+          },
+        },
       },
-      include: {
-        users: true
-      }
+      include: { users: true },
     });
 
     const user = tenant.users[0];
-    const token = jwt.sign(
-      { id: user.id, tenantId: tenant.id, role: user.role },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    const token = signToken({ id: user.id, tenantId: tenant.id, role: user.role });
 
     res.json({
       token,
@@ -57,10 +80,10 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
         email: user.email,
         role: user.role,
         tenantId: tenant.id,
-        tenantName: tenant.name
-      }
+        tenantName: tenant.name,
+      },
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Registration error:', error);
     res.status(500).json({ error: 'Failed to register' });
   }
@@ -68,11 +91,12 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
 
 router.post('/login', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password } = req.body;
-    
+    const body = validate(loginSchema, req.body, res);
+    if (!body) return;
+
     const user = await prisma.user.findUnique({
-      where: { email },
-      include: { tenant: true }
+      where: { email: body.email },
+      include: { tenant: true },
     });
 
     if (!user) {
@@ -80,17 +104,13 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const valid = await bcrypt.compare(password, user.password);
+    const valid = await bcrypt.compare(body.password, user.password);
     if (!valid) {
       res.status(401).json({ error: 'Invalid credentials' });
       return;
     }
 
-    const token = jwt.sign(
-      { id: user.id, tenantId: user.tenantId, role: user.role },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    const token = signToken(user);
 
     res.json({
       token,
@@ -100,12 +120,69 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
         email: user.email,
         role: user.role,
         tenantId: user.tenantId,
-        tenantName: user.tenant.name
-      }
+        tenantName: user.tenant.name,
+      },
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Failed to login' });
+  }
+});
+
+// Request a password reset link. Always responds 200 to avoid email enumeration.
+router.post('/forgot-password', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const body = validate(forgotSchema, req.body, res);
+    if (!body) return;
+
+    const user = await prisma.user.findUnique({ where: { email: body.email } });
+    if (user) {
+      const token = crypto.randomBytes(32).toString('hex');
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          resetToken: token,
+          resetTokenExpiry: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+        },
+      });
+
+      const link = `${config.appUrl}/reset-password?token=${token}`;
+      await sendMail({
+        to: user.email,
+        subject: 'Reset your InGarage password',
+        text: `Hi ${user.name},\n\nClick the link below to reset your password. It expires in 1 hour.\n\n${link}\n\nIf you didn't request this, you can ignore this email.`,
+      });
+    }
+
+    res.json({ message: 'If that email exists, a reset link has been sent.' });
+  } catch (error) {
+    console.error('Forgot-password error:', error);
+    res.status(500).json({ error: 'Failed to process request' });
+  }
+});
+
+// Complete a password reset (also used to accept team invites).
+router.post('/reset-password', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const body = validate(resetSchema, req.body, res);
+    if (!body) return;
+
+    const user = await prisma.user.findUnique({ where: { resetToken: body.token } });
+    if (!user || !user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
+      res.status(400).json({ error: 'Invalid or expired reset link' });
+      return;
+    }
+
+    const hashedPassword = await bcrypt.hash(body.password, 10);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword, resetToken: null, resetTokenExpiry: null },
+    });
+
+    res.json({ message: 'Password updated. You can now log in.' });
+  } catch (error) {
+    console.error('Reset-password error:', error);
+    res.status(500).json({ error: 'Failed to reset password' });
   }
 });
 
@@ -113,7 +190,7 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response): Promise
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user?.id },
-      include: { tenant: true }
+      include: { tenant: true },
     });
 
     if (!user) {
@@ -128,10 +205,10 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response): Promise
         email: user.email,
         role: user.role,
         tenantId: user.tenantId,
-        tenantName: user.tenant.name
-      }
+        tenantName: user.tenant.name,
+      },
     });
-  } catch (error: any) {
+  } catch {
     res.status(500).json({ error: 'Failed to fetch user' });
   }
 });
