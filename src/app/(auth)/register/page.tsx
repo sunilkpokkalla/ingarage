@@ -12,6 +12,7 @@ export default function Register() {
   const [shopName, setShopName] = useState('');
   const [userName, setUserName] = useState('');
   const [error, setError] = useState('');
+  const [isSuccess, setIsSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
@@ -40,8 +41,11 @@ export default function Register() {
       });
       
       if (authError) throw authError;
-      
-      router.push('/dashboard');
+      if (data?.user && data?.session === null) {
+        setIsSuccess(true);
+      } else {
+        router.push('/dashboard');
+      }
     } catch (err: any) {
       const msg = err.message || 'Registration failed. Please try again.';
       setError(msg);
@@ -70,8 +74,27 @@ export default function Register() {
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-zinc-900 py-8 px-4 shadow-xl sm:rounded-2xl sm:px-10 border border-zinc-800">
+      {isSuccess ? (
+        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+          <div className="bg-zinc-900 py-8 px-4 shadow-xl sm:rounded-2xl sm:px-10 border border-zinc-800 text-center space-y-4">
+            <div className="mx-auto w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center mb-4">
+              <AlertCircle size={24} className="text-emerald-400" />
+            </div>
+            <h3 className="text-xl font-bold text-zinc-50">Check your email</h3>
+            <p className="text-zinc-400 text-sm">
+              We've sent a confirmation link to <span className="font-medium text-zinc-300">{email}</span>. 
+              Please click the link in the email to activate your account and sign in.
+            </p>
+            <div className="pt-4">
+              <Link href="/login" className="text-brand-400 hover:text-brand-300 font-medium text-sm transition-colors">
+                Return to sign in
+              </Link>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+          <div className="bg-zinc-900 py-8 px-4 shadow-xl sm:rounded-2xl sm:px-10 border border-zinc-800">
 
           {error && (
             <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-sm flex items-start gap-2">
@@ -160,8 +183,9 @@ export default function Register() {
           <div className="mt-6 text-center text-xs text-zinc-500">
             By creating an account, you agree to our Terms of Service and Privacy Policy.
           </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
