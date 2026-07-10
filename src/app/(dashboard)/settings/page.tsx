@@ -8,6 +8,7 @@ export default function Settings() {
   const queryClient = useQueryClient();
   const supabase = createClient();
   const [isActive, setIsActive] = useState(false);
+  const [provider, setProvider] = useState('STRIPE');
   const [publicKey, setPublicKey] = useState('');
   const [secretKey, setSecretKey] = useState('');
   const [webhookSecret, setWebhookSecret] = useState('');
@@ -29,14 +30,24 @@ export default function Settings() {
 
   const inviteMutation = useMutation({
     mutationFn: async (data: any) => {
-      const { data: result, error } = await supabase.from('User').insert([{
-        name: data.name,
-        email: data.email,
-        role: data.role,
-        password: 'INVITED' // Placeholder since actual invite needs edge function
-      }]).select().single();
-      if (error) throw error;
-      return result;
+      const response = await fetch('/api/invite', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: data.email,
+          name: data.name,
+          role: data.role
+        })
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || 'Failed to send invite');
+      }
+
+      return response.json();
     },
     onSuccess: (_res, vars: any) => {
       queryClient.invalidateQueries({ queryKey: ['team'] });
@@ -62,6 +73,7 @@ export default function Settings() {
   useEffect(() => {
     if (settings) {
       setIsActive(settings.isActive);
+      setProvider(settings.provider || 'STRIPE');
       setPublicKey(settings.publicKey || '');
     }
   }, [settings]);
@@ -93,7 +105,7 @@ export default function Settings() {
 
   const handleSave = () => {
     saveMutation.mutate({
-      provider: 'STRIPE',
+      provider,
       isActive,
       publicKey,
       secretKey: secretKey || undefined,
@@ -143,10 +155,14 @@ export default function Settings() {
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2 font-mono">Provider</label>
-                <select className="w-full bg-zinc-950 border border-zinc-800 text-zinc-100 rounded-xl px-4 py-3 focus:outline-none focus:border-brand-500 transition-colors">
+                <select 
+                  value={provider}
+                  onChange={(e) => setProvider(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 text-zinc-100 rounded-xl px-4 py-3 focus:outline-none focus:border-brand-500 transition-colors"
+                >
                   <option value="STRIPE">Stripe (Recommended)</option>
-                  <option value="PAYPAL" disabled>PayPal (Coming Soon)</option>
-                  <option value="SQUARE" disabled>Square (Coming Soon)</option>
+                  <option value="PAYPAL">PayPal</option>
+                  <option value="SQUARE">Square</option>
                 </select>
               </div>
 
@@ -188,12 +204,12 @@ export default function Settings() {
             </div>
 
             <div className="bg-zinc-950/50 border border-zinc-800/50 rounded-2xl p-6 h-fit">
-              <h4 className="text-sm font-bold text-zinc-100 mb-4 font-['Outfit']">How to connect Stripe</h4>
+              <h4 className="text-sm font-bold text-zinc-100 mb-4 font-['Outfit']">How to connect {provider === 'STRIPE' ? 'Stripe' : provider === 'PAYPAL' ? 'PayPal' : 'Square'}</h4>
               <ol className="list-decimal list-inside space-y-3 text-sm text-zinc-400">
-                <li>Create a <a href="https://stripe.com" target="_blank" rel="noreferrer" className="text-brand-400 hover:text-brand-300 underline">Stripe account</a>.</li>
-                <li>Go to Developers {'>'} API Keys to find your <strong>Publishable</strong> and <strong>Secret</strong> keys.</li>
-                <li>Go to Developers {'>'} Webhooks and add an endpoint pointing to <code className="bg-zinc-800 px-2 py-0.5 rounded font-mono text-xs text-zinc-300">https://yourdomain.com/api/webhooks/stripe</code></li>
-                <li>Ensure the webhook listens to <code className="bg-zinc-800 px-2 py-0.5 rounded font-mono text-xs text-zinc-300">payment_intent.succeeded</code> and <code className="bg-zinc-800 px-2 py-0.5 rounded font-mono text-xs text-zinc-300">payment_intent.payment_failed</code>.</li>
+                <li>Create a <a href="#" target="_blank" rel="noreferrer" className="text-brand-400 hover:text-brand-300 underline">{provider === 'STRIPE' ? 'Stripe' : provider === 'PAYPAL' ? 'PayPal' : 'Square'} account</a>.</li>
+                <li>Go to Developers {'>'} API Keys to find your <strong>Client ID (Publishable)</strong> and <strong>Secret</strong> keys.</li>
+                <li>Go to Developers {'>'} Webhooks and add an endpoint pointing to <code className="bg-zinc-800 px-2 py-0.5 rounded font-mono text-xs text-zinc-300">https://yourdomain.com/api/webhooks/{provider.toLowerCase()}</code></li>
+                <li>Ensure the webhook listens to payment success and failure events.</li>
                 <li>Copy the <strong>Signing Secret</strong> and paste it into the Webhook Secret field.</li>
               </ol>
 
