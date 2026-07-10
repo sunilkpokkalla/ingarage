@@ -6,7 +6,7 @@ import { createClient } from '@/utils/supabase/client';
 import { CarFront, LockKeyhole } from 'lucide-react';
 
 export default function ResetPassword() {
-  const [searchParams] = useSearchParams();
+  const searchParams = useSearchParams();
   const token = searchParams.get('token') || '';
   const isInvite = searchParams.get('invite') === '1';
 
