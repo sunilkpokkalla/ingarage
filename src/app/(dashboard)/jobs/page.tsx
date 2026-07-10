@@ -1,18 +1,20 @@
 "use client";
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import api from '@/lib/api';
+import { createClient } from '@/utils/supabase/client';
 import { Wrench, Search, Plus, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import NewJobModal from '@/components/NewJobModal';
 
 export default function Jobs() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const supabase = createClient();
 
   const { data: jobs = [], isLoading } = useQuery({
     queryKey: ['jobs'],
     queryFn: async () => {
-      const res = await api.get('/jobs');
-      return res.data;
+      const { data, error } = await supabase.from('Job').select('*');
+      if (error) throw error;
+      return data;
     }
   });
 

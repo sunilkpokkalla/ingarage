@@ -1,7 +1,7 @@
 "use client";
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '@/lib/api';
+import { createClient } from '@/utils/supabase/client';
 import {
   ReceiptText,
   Search,
@@ -21,6 +21,7 @@ function currency(value: number) {
 
 export default function Invoices() {
   const queryClient = useQueryClient();
+  const supabase = createClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     jobId: '',
@@ -30,23 +31,46 @@ export default function Invoices() {
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: ['invoices'],
     queryFn: async () => {
-      const res = await api.get('/invoices');
-      return res.data;
+      const { data, error } = await supabase.from('Invoice').select('*, job:Job(*)');
+      if (error) throw error;
+      return data;
     }
   });
 
   const { data: jobs = [] } = useQuery({
     queryKey: ['jobs'],
     queryFn: async () => {
-      const res = await api.get('/jobs');
-      return res.data;
+      const { data, error } = await supabase.from('Job').select('*');
+      if (error) throw error;
+      return data;
     }
   });
 
   const mutation = useMutation({
     mutationFn: async (newInvoice: any) => {
-      const res = await api.post('/invoices', newInvoice);
-      return res.data;
+      // Calculate subtotal from parts and labor
+      const { data: job } = await supabase
+        .from('Job')
+        .select('laborHours, laborRate, parts:Part(cost)')
+        .eq('id', newInvoice.jobId)
+        .single();
+        
+      let subtotal = 0;
+      if (job) {
+        const partsTotal = (job.parts || []).reduce((sum: number, p: any) => sum + (p.cost || 0), 0);
+        const laborTotal = (job.laborHours || 0) * (job.laborRate || 0);
+        subtotal = partsTotal + laborTotal;
+      }
+
+      const { data, error } = await supabase.from('Invoice').insert([{
+        jobId: newInvoice.jobId,
+        discount: newInvoice.discount,
+        subtotal,
+        status: 'Draft'
+      }]).select().single();
+      
+      if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
@@ -54,7 +78,7 @@ export default function Invoices() {
       setFormData({ jobId: '', discount: 0 });
     },
     onError: (err: any) => {
-      alert(err.response?.data?.error || 'Failed to draft invoice');
+      alert(err.message || 'Failed to draft invoice');
     }
   });
 

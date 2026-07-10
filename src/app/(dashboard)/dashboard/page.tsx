@@ -1,7 +1,7 @@
 "use client";
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import api from '@/lib/api';
+import { createClient } from '@/utils/supabase/client';
 import {
   TrendUp,
   Clock,
@@ -24,19 +24,41 @@ function currency(value: number) {
 }
 
 export default function Dashboard() {
+  const supabase = createClient();
   const { data: jobs = [], isLoading } = useQuery({
     queryKey: ['jobs'],
     queryFn: async () => {
-      const res = await api.get('/jobs');
-      return res.data;
+      const { data, error } = await supabase.from('Job').select('*, parts:Part(cost)');
+      if (error) throw error;
+      return data.map((job: any) => ({
+        ...job,
+        partsCost: (job.parts || []).reduce((sum: number, p: any) => sum + (p.cost || 0), 0)
+      }));
     }
   });
 
   const { data: stats } = useQuery({
     queryKey: ['stats'],
     queryFn: async () => {
-      const res = await api.get('/stats');
-      return res.data;
+      const [jobsRes, invoicesRes, partsRes] = await Promise.all([
+        supabase.from('Job').select('status, laborHours'),
+        supabase.from('Invoice').select('status, subtotal, discount, paid'),
+        supabase.from('Part').select('status')
+      ]);
+
+      const activeJobs = (jobsRes.data || []).filter((j: any) => j.status !== 'Completed').length;
+      const laborCaptured = (jobsRes.data || []).reduce((sum: number, j: any) => sum + (j.laborHours || 0), 0);
+      const partsInTransit = (partsRes.data || []).filter((p: any) => p.status === 'InTransit').length;
+      const revenue = (invoicesRes.data || [])
+        .filter((i: any) => i.status === 'Paid')
+        .reduce((sum: number, i: any) => sum + (i.paid || Math.max(0, (i.subtotal || 0) - (i.discount || 0))), 0);
+
+      return {
+        activeJobs,
+        laborCaptured,
+        partsInTransit,
+        revenue
+      };
     }
   });
 

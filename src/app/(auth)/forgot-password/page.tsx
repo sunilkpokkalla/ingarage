@@ -1,7 +1,7 @@
 "use client";
 import { useState } from 'react';
 import Link from 'next/link';
-import api from '@/lib/api';
+import { createClient } from '@/utils/supabase/client';
 import { CarFront, Send, ArrowLeft } from 'lucide-react';
 
 export default function ForgotPassword() {
@@ -9,6 +9,7 @@ export default function ForgotPassword() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const supabase = createClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,10 +18,14 @@ export default function ForgotPassword() {
     setLoading(true);
 
     try {
-      const res = await api.post('/auth/forgot-password', { email });
-      setMessage(res.data.message || 'If that email exists, a reset link has been sent.');
+      const { error: authError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (authError) throw authError;
+      
+      setMessage('If that email exists, a reset link has been sent.');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Something went wrong');
+      setError(err.message || 'Something went wrong');
     } finally {
       setLoading(false);
     }

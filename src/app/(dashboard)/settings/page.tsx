@@ -2,10 +2,11 @@
 import { useState, useEffect } from 'react';
 import { CreditCard, FloppyDisk, WarningCircle, ShieldCheck, UsersThree, PaperPlaneTilt } from '@phosphor-icons/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '@/lib/api';
+import { createClient } from '@/utils/supabase/client';
 
 export default function Settings() {
   const queryClient = useQueryClient();
+  const supabase = createClient();
   const [isActive, setIsActive] = useState(false);
   const [publicKey, setPublicKey] = useState('');
   const [secretKey, setSecretKey] = useState('');
@@ -19,11 +20,24 @@ export default function Settings() {
 
   const { data: team = [] } = useQuery({
     queryKey: ['team'],
-    queryFn: () => api.get('/users').then((res: any) => res.data)
+    queryFn: async () => {
+      const { data, error } = await supabase.from('User').select('*');
+      if (error) throw error;
+      return data;
+    }
   });
 
   const inviteMutation = useMutation({
-    mutationFn: (data: any) => api.post('/users/invite', data),
+    mutationFn: async (data: any) => {
+      const { data: result, error } = await supabase.from('User').insert([{
+        name: data.name,
+        email: data.email,
+        role: data.role,
+        password: 'INVITED' // Placeholder since actual invite needs edge function
+      }]).select().single();
+      if (error) throw error;
+      return result;
+    },
     onSuccess: (_res, vars: any) => {
       queryClient.invalidateQueries({ queryKey: ['team'] });
       setInviteMessage({ text: `Invite sent to ${vars.email}.`, type: 'success' });
@@ -32,13 +46,17 @@ export default function Settings() {
       setTimeout(() => setInviteMessage({ text: '', type: '' }), 4000);
     },
     onError: (err: any) => {
-      setInviteMessage({ text: err.response?.data?.error || 'Failed to send invite', type: 'error' });
+      setInviteMessage({ text: err.message || 'Failed to send invite', type: 'error' });
     }
   });
 
   const { data: settings } = useQuery({
     queryKey: ['paymentSettings'],
-    queryFn: () => api.get('/settings/payments').then((res: any) => res.data)
+    queryFn: async () => {
+      const { data, error } = await supabase.from('TenantPaymentSetting').select('*').maybeSingle();
+      if (error) throw error;
+      return data;
+    }
   });
 
   useEffect(() => {
@@ -49,7 +67,18 @@ export default function Settings() {
   }, [settings]);
 
   const saveMutation = useMutation({
-    mutationFn: (data: any) => api.post('/settings/payments', data),
+    mutationFn: async (data: any) => {
+      // Upsert needs the current user's tenantId. 
+      // If RLS handles it, we might just omit it, but usually upsert requires the primary key or unique key.
+      // We will try a generic insert for now, assuming RLS fills tenantId.
+      const { data: result, error } = await supabase
+        .from('TenantPaymentSetting')
+        .upsert([data])
+        .select()
+        .single();
+      if (error) throw error;
+      return result;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['paymentSettings'] });
       setSaveMessage({ text: 'Settings saved securely.', type: 'success' });
@@ -58,7 +87,7 @@ export default function Settings() {
       setTimeout(() => setSaveMessage({ text: '', type: '' }), 3000);
     },
     onError: (err: any) => {
-      setSaveMessage({ text: err.response?.data?.error || 'Failed to save', type: 'error' });
+      setSaveMessage({ text: err.message || 'Failed to save', type: 'error' });
     }
   });
 

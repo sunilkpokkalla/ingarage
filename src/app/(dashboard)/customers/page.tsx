@@ -1,7 +1,7 @@
 "use client";
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '@/lib/api';
+import { createClient } from '@/utils/supabase/client';
 import {
   MessageSquareText,
   Search,
@@ -22,20 +22,23 @@ const emptyForm: CustomerForm = { name: '', email: '', phone: '' };
 
 export default function Customers() {
   const queryClient = useQueryClient();
+  const supabase = createClient();
 
   const { data: customers = [], isLoading } = useQuery({
     queryKey: ['customers'],
     queryFn: async () => {
-      const res = await api.get('/customers');
-      return res.data;
+      const { data, error } = await supabase.from('Customer').select('*');
+      if (error) throw error;
+      return data;
     }
   });
 
   const { data: jobs = [] } = useQuery({
     queryKey: ['jobs'],
     queryFn: async () => {
-      const res = await api.get('/jobs');
-      return res.data;
+      const { data, error } = await supabase.from('Job').select('*');
+      if (error) throw error;
+      return data;
     }
   });
 
@@ -45,12 +48,15 @@ export default function Customers() {
   const [formError, setFormError] = useState('');
 
   const createMutation = useMutation({
-    mutationFn: (data: CustomerForm) =>
-      api.post('/customers', {
+    mutationFn: async (data: CustomerForm) => {
+      const { data: result, error } = await supabase.from('Customer').insert([{
         name: data.name,
         email: data.email || null,
         phone: data.phone || null
-      }),
+      }]).select().single();
+      if (error) throw error;
+      return result;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       setForm(emptyForm);
@@ -58,7 +64,7 @@ export default function Customers() {
       setFormError('');
     },
     onError: (err: any) => {
-      setFormError(err.response?.data?.error || 'Failed to create customer');
+      setFormError(err.message || 'Failed to create customer');
     }
   });
 

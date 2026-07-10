@@ -1,7 +1,7 @@
 "use client";
 import { useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '@/lib/api';
+import { createClient } from '@/utils/supabase/client';
 import {
   FileCheck2,
   Search,
@@ -38,44 +38,61 @@ export default function Documents() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedJobId, setSelectedJobId] = useState('');
   const [uploadError, setUploadError] = useState('');
+  const supabase = createClient();
 
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ['documents'],
     queryFn: async () => {
-      const res = await api.get('/documents');
-      return res.data;
+      const { data, error } = await supabase
+        .from('Document')
+        .select('id, name, mimeType, size, createdAt, jobId, job:Job(vehicle, customer)');
+      if (error) throw error;
+      return data;
     }
   });
 
   const { data: jobs = [] } = useQuery({
     queryKey: ['jobs'],
     queryFn: async () => {
-      const res = await api.get('/jobs');
-      return res.data;
+      const { data, error } = await supabase.from('Job').select('*');
+      if (error) throw error;
+      return data;
     }
   });
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
-      const dataBase64 = await fileToBase64(file);
-      return api.post('/documents', {
+      const arrayBuffer = await file.arrayBuffer();
+      const hexString = Array.from(new Uint8Array(arrayBuffer))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+      const dataHex = `\\x${hexString}`;
+
+      const { data, error } = await supabase.from('Document').insert([{
         name: file.name,
         mimeType: file.type || 'application/octet-stream',
-        dataBase64,
+        size: file.size,
+        data: dataHex,
         jobId: selectedJobId || null
-      });
+      }]).select('id').single();
+
+      if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['documents'] });
       setUploadError('');
     },
     onError: (err: any) => {
-      setUploadError(err.response?.data?.error || 'Upload failed');
+      setUploadError(err.message || 'Upload failed');
     }
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/documents/${id}`),
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('Document').delete().eq('id', id);
+      if (error) throw error;
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['documents'] })
   });
 
@@ -91,13 +108,41 @@ export default function Documents() {
   };
 
   const handleDownload = async (doc: any) => {
-    const res = await api.get(`/documents/${doc.id}/download`, { responseType: 'blob' });
-    const url = URL.createObjectURL(res.data);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = doc.name;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const { data: fileData, error } = await supabase
+        .from('Document')
+        .select('data, mimeType, name')
+        .eq('id', doc.id)
+        .single();
+      
+      if (error) throw error;
+
+      let blob;
+      if (fileData.data.startsWith('\\x')) {
+        const hex = fileData.data.slice(2);
+        const bytes = new Uint8Array(Math.ceil(hex.length / 2));
+        for (let i = 0; i < bytes.length; i++) {
+          bytes[i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16);
+        }
+        blob = new Blob([bytes], { type: fileData.mimeType });
+      } else {
+        const binaryString = atob(fileData.data);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        blob = new Blob([bytes], { type: fileData.mimeType });
+      }
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileData.name || doc.name;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert('Failed to download document: ' + err.message);
+    }
   };
 
   const filteredDocs = documents.filter((d: any) =>

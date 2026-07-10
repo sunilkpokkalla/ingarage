@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'react-router-dom';
-import api from '@/lib/api';
+import { createClient } from '@/utils/supabase/client';
 import { CarFront, LockKeyhole } from 'lucide-react';
 
 export default function ResetPassword() {
@@ -16,6 +16,7 @@ export default function ResetPassword() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const supabase = createClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,10 +33,12 @@ export default function ResetPassword() {
 
     setLoading(true);
     try {
-      await api.post('/auth/reset-password', { token, password });
-      router.push('/login');
+      const { error: updateError } = await supabase.auth.updateUser({ password });
+      if (updateError) throw updateError;
+      
+      router.push('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to set password');
+      setError(err.message || 'Failed to set password');
     } finally {
       setLoading(false);
     }

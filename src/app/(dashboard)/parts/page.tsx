@@ -1,7 +1,7 @@
 "use client";
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '@/lib/api';
+import { createClient } from '@/utils/supabase/client';
 import {
   PackageSearch,
   Search,
@@ -14,6 +14,7 @@ import {
 
 export default function Parts() {
   const queryClient = useQueryClient();
+  const supabase = createClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     jobId: '',
@@ -27,23 +28,34 @@ export default function Parts() {
   const { data: parts = [], isLoading } = useQuery({
     queryKey: ['parts'],
     queryFn: async () => {
-      const res = await api.get('/parts');
-      return res.data;
+      const { data, error } = await supabase.from('Part').select('*, job:Job(*)');
+      if (error) throw error;
+      return data;
     }
   });
 
   const { data: jobs = [] } = useQuery({
     queryKey: ['jobs'],
     queryFn: async () => {
-      const res = await api.get('/jobs');
-      return res.data;
+      const { data, error } = await supabase.from('Job').select('*');
+      if (error) throw error;
+      return data;
     }
   });
 
   const mutation = useMutation({
     mutationFn: async (newPart: any) => {
-      const res = await api.post('/parts', newPart);
-      return res.data;
+      const { data, error } = await supabase.from('Part').insert([{
+        jobId: newPart.jobId,
+        name: newPart.name,
+        number: newPart.number || null,
+        supplier: newPart.supplier,
+        cost: Number(newPart.cost),
+        eta: newPart.eta ? new Date(newPart.eta).toISOString() : null,
+        status: 'Ordered'
+      }]).select().single();
+      if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['parts'] });

@@ -1,6 +1,6 @@
 "use client";
 import { useQuery } from '@tanstack/react-query';
-import api from '@/lib/api';
+import { createClient } from '@/utils/supabase/client';
 import {
   Gauge,
   TrendingUp,
@@ -18,19 +18,22 @@ function currency(value: number) {
 }
 
 export default function Analytics() {
+  const supabase = createClient();
   const { data: jobs = [], isLoading: loadingJobs } = useQuery({
     queryKey: ['jobs'],
     queryFn: async () => {
-      const res = await api.get('/jobs');
-      return res.data;
+      const { data, error } = await supabase.from('Job').select('*');
+      if (error) throw error;
+      return data;
     }
   });
 
   const { data: invoices = [], isLoading: loadingInvoices } = useQuery({
     queryKey: ['invoices'],
     queryFn: async () => {
-      const res = await api.get('/invoices');
-      return res.data;
+      const { data, error } = await supabase.from('Invoice').select('*');
+      if (error) throw error;
+      return data;
     }
   });
 

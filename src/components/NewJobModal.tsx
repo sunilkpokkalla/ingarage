@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '@/lib/api';
+import { createClient } from '@/utils/supabase/client';
 import { X } from 'lucide-react';
 
 interface NewJobModalProps {
@@ -10,6 +10,7 @@ interface NewJobModalProps {
 
 export default function NewJobModal({ isOpen, onClose }: NewJobModalProps) {
   const queryClient = useQueryClient();
+  const supabase = createClient();
   const [formData, setFormData] = useState({
     vehicle: '',
     customer: '',
@@ -20,8 +21,15 @@ export default function NewJobModal({ isOpen, onClose }: NewJobModalProps) {
 
   const mutation = useMutation({
     mutationFn: async (newJob: any) => {
-      const res = await api.post('/jobs', newJob);
-      return res.data;
+      const { data, error } = await supabase.from('Job').insert([{
+        vehicle: newJob.vehicle,
+        customer: newJob.customer,
+        vin: newJob.vin || null,
+        insurer: newJob.insurer || null,
+        status: newJob.status
+      }]).select().single();
+      if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });

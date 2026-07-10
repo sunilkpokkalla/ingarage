@@ -1,7 +1,7 @@
 "use client";
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import api from '@/lib/api';
+import { createClient } from '@/utils/supabase/client';
 import {
   Timer,
   Play,
@@ -11,11 +11,13 @@ import {
 } from 'lucide-react';
 
 export default function Labor() {
+  const supabase = createClient();
   const { data: jobs = [] } = useQuery({
     queryKey: ['jobs'],
     queryFn: async () => {
-      const res = await api.get('/jobs');
-      return res.data;
+      const { data, error } = await supabase.from('Job').select('*');
+      if (error) throw error;
+      return data;
     }
   });
 
@@ -23,22 +25,48 @@ export default function Labor() {
 
   const handleClockIn = async (jobId: string) => {
     try {
-      await api.post('/time/clock-in', { jobId });
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.email) {
+        const { data: userRecord } = await supabase.from('User').select('id, hourlyRate').eq('email', session.user.email).single();
+        if (userRecord) {
+          await supabase.from('TimeLog').insert([{
+            jobId,
+            userId: userRecord.id,
+            laborRate: userRecord.hourlyRate || 0,
+            startTime: new Date().toISOString()
+          }]);
+        }
+      }
       setActiveJobId(jobId);
-      // In a real app we'd invalidate queries or update state via socket
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to clock in');
+      alert('Failed to clock in: ' + err.message);
     }
   };
 
   const handleClockOut = async (jobId: string) => {
     try {
-      await api.post('/time/clock-out', { jobId });
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.email) {
+        const { data: userRecord } = await supabase.from('User').select('id').eq('email', session.user.email).single();
+        if (userRecord) {
+          const { data: log } = await supabase
+            .from('TimeLog')
+            .select('id')
+            .eq('jobId', jobId)
+            .eq('userId', userRecord.id)
+            .is('endTime', null)
+            .maybeSingle();
+            
+          if (log) {
+            await supabase.from('TimeLog').update({ endTime: new Date().toISOString() }).eq('id', log.id);
+          }
+        }
+      }
       setActiveJobId(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to clock out');
+      alert('Failed to clock out: ' + err.message);
     }
   };
 
