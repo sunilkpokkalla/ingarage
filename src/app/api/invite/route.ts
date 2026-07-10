@@ -3,8 +3,9 @@ export const runtime = 'edge';
 import { createClient } from '@supabase/supabase-js';
 
 // We need the service role key to bypass RLS and use the auth admin API to invite users.
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const _url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseUrl = _url.startsWith('http') ? _url : 'https://placeholder.supabase.co';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder';
 
 export async function POST(req: NextRequest) {
   try {
