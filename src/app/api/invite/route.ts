@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+export const runtime = 'edge';
 import { createClient } from '@supabase/supabase-js';
 
 // We need the service role key to bypass RLS and use the auth admin API to invite users.
