@@ -1,5 +1,8 @@
+"use client";
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import api from '../lib/api';
+import { createClient } from '@/utils/supabase/client';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface User {
   id: string;
@@ -13,8 +16,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (token: string, userData: User) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,36 +24,63 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const supabase = createClient();
 
   useEffect(() => {
+    // 1. Check active session on mount
     const checkAuth = async () => {
-      const token = localStorage.getItem('token');
-      if (token) {
-        try {
-          const res = await api.get('/auth/me');
-          setUser(res.data.user);
-        } catch (error) {
-          console.error('Auth check failed', error);
-          localStorage.removeItem('token');
-        }
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        // Fetch additional custom user data (tenant, role, etc) from Supabase if needed
+        // For now, mapping the Supabase user to the interface
+        setUser({
+          id: session.user.id,
+          email: session.user.email || '',
+          name: session.user.user_metadata?.full_name || '',
+          role: session.user.user_metadata?.role || 'user',
+          tenantId: session.user.user_metadata?.tenant_id || '',
+          tenantName: session.user.user_metadata?.tenant_name || '',
+        });
+      } else {
+        setUser(null);
       }
       setLoading(false);
     };
+
     checkAuth();
-  }, []);
 
-  const login = (token: string, userData: User) => {
-    localStorage.setItem('token', token);
-    setUser(userData);
-  };
+    // 2. Listen for auth changes (login, logout, token refresh)
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session?.user) {
+          setUser({
+            id: session.user.id,
+            email: session.user.email || '',
+            name: session.user.user_metadata?.full_name || '',
+            role: session.user.user_metadata?.role || 'user',
+            tenantId: session.user.user_metadata?.tenant_id || '',
+            tenantName: session.user.user_metadata?.tenant_name || '',
+          });
+        } else {
+          setUser(null);
+        }
+        setLoading(false);
+      }
+    );
 
-  const logout = () => {
-    localStorage.removeItem('token');
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [supabase.auth]);
+
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, logout }}>
       {!loading && children}
     </AuthContext.Provider>
   );
