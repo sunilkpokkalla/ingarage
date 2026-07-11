@@ -1,173 +1,253 @@
 "use client";
 import Link from 'next/link';
-import { motion } from 'framer-motion';
-import type { Variants } from 'framer-motion';
-import { 
-  ArrowRight, 
-  Play,
-  Quotes
-} from '@phosphor-icons/react';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import { ArrowRight, Play, CheckCircle, Lightning, ShieldCheck, ChartLineUp } from '@phosphor-icons/react';
+import { useRef } from 'react';
+import { TronCarBackground } from '@/components/TronCarBackground';
 
-export default function Home() {
-  const containerVariants: Variants = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
-  };
+const FADE_UP_ANIMATION_VARIANTS = {
+  hidden: { opacity: 0, y: 30 },
+  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 80, damping: 20 } },
+};
 
-  const itemVariants: Variants = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100, damping: 20 } }
-  };
+export default function MarketingPage() {
+  const containerRef = useRef(null);
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start start", "end start"]
+  });
+  
+  const y = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
+  const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
 
   return (
-    <div className="flex flex-col relative w-full overflow-hidden bg-zinc-950">
+    <div ref={containerRef} className="relative w-full text-zinc-50 overflow-hidden">
       
-      {/* Narrative Hero: Left text, Right Image */}
-      <section className="relative z-10 pt-32 pb-32 px-6 bg-zinc-50 rounded-b-[4rem]">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+      {/* Dynamic Background Glow */}
+      <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[100vw] h-[50vh] bg-brand-500/20 blur-[120px] rounded-full pointer-events-none opacity-50" />
+      <div className="absolute top-[40%] right-[-10%] w-[50vw] h-[50vw] bg-blue-500/10 blur-[150px] rounded-full pointer-events-none" />
+
+      {/* Tron Animated Car SVG */}
+      <TronCarBackground />
+
+      {/* Hero Section */}
+      <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 px-6 flex flex-col items-center text-center z-10">
+        <motion.div
+          initial="hidden"
+          animate="show"
+          viewport={{ once: true }}
+          variants={{
+            hidden: {},
+            show: {
+              transition: { staggerChildren: 0.15 },
+            },
+          }}
+          className="max-w-5xl mx-auto flex flex-col items-center"
+        >
+          <motion.div variants={FADE_UP_ANIMATION_VARIANTS} className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-md mb-8">
+            <span className="w-2 h-2 rounded-full bg-brand-500 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.8)]" />
+            <span className="text-sm font-medium text-zinc-300">InGarage 2.0 is now live</span>
+          </motion.div>
           
-          <motion.div 
-            className="flex flex-col items-start"
-            variants={containerVariants}
-            initial="hidden"
-            animate="show"
+          <motion.h1 
+            variants={FADE_UP_ANIMATION_VARIANTS}
+            className="text-6xl md:text-8xl font-bold tracking-tighter leading-[1.05] mb-8 font-['Outfit'] text-balance"
           >
-            <motion.div variants={itemVariants} className="inline-flex items-center gap-2 px-4 py-2 rounded-full liquid-glass border border-brand-500/20 text-brand-700 text-xs font-bold uppercase tracking-widest mb-8">
-              <span className="w-2 h-2 rounded-full bg-brand-500 animate-pulse" />
-              InGarage 2.0 is Live
-            </motion.div>
-            
-            <motion.h1 variants={itemVariants} className="text-5xl md:text-7xl font-bold text-zinc-950 tracking-tighter leading-[1.05] mb-6 font-['Outfit'] text-balance">
-              Control the floor. <br/>
-              <span className="text-zinc-400">Not the chaos.</span>
-            </motion.h1>
-            
-            <motion.p variants={itemVariants} className="text-lg md:text-xl text-zinc-500 mb-10 max-w-[45ch] leading-relaxed">
-              Stop running a million-dollar body shop on whiteboards and text messages. Command every repair, part, and payment from one unified operating system.
-            </motion.p>
-            
-            <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
-              <Link href="/register" 
-                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-zinc-950 text-white px-8 py-4 rounded-full font-bold hover:bg-zinc-800 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-xl shadow-zinc-950/20"
-              >
-                Start Free Trial <ArrowRight weight="bold" />
-              </Link>
-              <button className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white text-zinc-950 px-8 py-4 rounded-full font-bold hover:bg-zinc-50 border border-zinc-200 transition-all hover:scale-[1.02] active:scale-[0.98]">
-                <Play weight="fill" className="text-brand-500" /> Watch Demo
-              </button>
-            </motion.div>
-          </motion.div>
-
-          <motion.div 
-            className="relative w-full h-[600px] rounded-[2.5rem] overflow-hidden shadow-2xl shadow-zinc-950/10"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: "spring", stiffness: 60, damping: 20, delay: 0.2 }}
+            Control the floor. <br/>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-zinc-400 to-zinc-600">Not the chaos.</span>
+          </motion.h1>
+          
+          <motion.p 
+            variants={FADE_UP_ANIMATION_VARIANTS}
+            className="text-lg md:text-xl text-zinc-400 mb-12 max-w-2xl leading-relaxed font-light"
           >
-            <img src="/hero.png" alt="Mechanic using InGarage tablet next to luxury car" className="absolute inset-0 w-full h-full object-cover" />
+            Stop running a million-dollar body shop on whiteboards and text messages. Command every repair, part, and payment from one highly-tuned operating system.
+          </motion.p>
+          
+          <motion.div variants={FADE_UP_ANIMATION_VARIANTS} className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+            <Link href="/register" 
+              className="group relative flex items-center justify-center gap-2 bg-zinc-50 text-zinc-950 px-8 py-4 rounded-full font-bold transition-all hover:scale-105 active:scale-95 overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-brand-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              Start Free Trial <ArrowRight weight="bold" className="group-hover:translate-x-1 transition-transform" />
+            </Link>
+            <button className="flex items-center justify-center gap-2 bg-zinc-900/50 text-zinc-300 border border-zinc-800 px-8 py-4 rounded-full font-bold hover:bg-zinc-800 hover:text-white transition-all hover:scale-105 active:scale-95 backdrop-blur-sm">
+              <Play weight="fill" className="text-brand-500" /> Watch Demo
+            </button>
           </motion.div>
+        </motion.div>
 
+        {/* Hero Image / Dashboard Preview */}
+        <motion.div 
+          style={{ y, opacity }}
+          className="relative mt-24 w-full max-w-6xl mx-auto"
+        >
+          <div className="absolute -inset-1 bg-gradient-to-b from-brand-500/30 to-transparent blur-2xl opacity-50 rounded-[3rem]" />
+          <div className="relative rounded-[2rem] border border-zinc-800/80 bg-zinc-900/50 p-2 md:p-4 backdrop-blur-xl shadow-2xl">
+            <div className="rounded-[1.5rem] overflow-hidden border border-zinc-800">
+              <img src="/hero.png" alt="InGarage Dashboard" className="w-full h-auto object-cover" />
+            </div>
+          </div>
+        </motion.div>
+      </section>
+
+      {/* Logos Section */}
+      <section className="py-20 border-y border-zinc-900 bg-zinc-950/50">
+        <div className="max-w-7xl mx-auto px-6 text-center">
+          <p className="text-sm font-semibold text-zinc-500 uppercase tracking-widest mb-8">Trusted by top collision centers nationwide</p>
+          <div className="flex flex-wrap justify-center items-center gap-12 md:gap-24 opacity-40 grayscale hover:grayscale-0 transition-all duration-500">
+            {/* Placeholder Logos */}
+            <div className="text-xl font-bold font-serif">Precision Auto</div>
+            <div className="text-xl font-black tracking-tighter">ELITE COLLISION</div>
+            <div className="text-xl font-bold font-mono">FIX_AUTO</div>
+            <div className="text-xl font-medium tracking-widest">CALIBER</div>
+          </div>
         </div>
       </section>
 
-      {/* Success Story Section */}
-      <section className="py-32 px-6 bg-zinc-950 relative z-10 overflow-hidden text-zinc-50">
-        <div className="absolute top-0 right-0 w-[50vw] h-[50vw] bg-brand-500/10 blur-[150px] rounded-full pointer-events-none" />
-        
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-          
-          <motion.div 
-            className="order-2 lg:order-1 relative w-full aspect-[4/5] md:aspect-square lg:aspect-[4/5] rounded-[2.5rem] overflow-hidden shadow-2xl"
-            initial={{ opacity: 0, x: -50 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ type: "spring", stiffness: 60, damping: 20 }}
-          >
-             <img src="/owner.png" alt="Auto body shop owner portrait" className="absolute inset-0 w-full h-full object-cover" />
-          </motion.div>
+      {/* Bento Grid Features Section */}
+      <section className="py-32 px-6 relative z-10">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-16 md:mb-24">
+            <h2 className="text-3xl md:text-5xl font-bold tracking-tighter mb-6 font-['Outfit']">Everything you need.<br/><span className="text-zinc-500">Nothing you don't.</span></h2>
+            <p className="text-zinc-400 text-lg max-w-xl">We stripped away the clutter of legacy software to build tools that actually speed up your workflow.</p>
+          </div>
 
-          <motion.div 
-            className="order-1 lg:order-2 flex flex-col items-start"
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, margin: "-100px" }}
-            variants={containerVariants}
-          >
-            <motion.div variants={itemVariants}>
-              <Quotes size={48} weight="fill" className="text-brand-500 mb-8 opacity-50" />
-            </motion.div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
-            <motion.h2 variants={itemVariants} className="text-3xl md:text-5xl font-bold tracking-tighter leading-[1.1] mb-8 font-['Outfit'] text-balance">
-              "We used to spend three hours a day just figuring out where cars were. Now, InGarage tells us instantly."
-            </motion.h2>
-            
-            <motion.p variants={itemVariants} className="text-xl text-zinc-400 mb-10 leading-relaxed font-light">
-              When Precision Auto Works switched to InGarage, they completely eliminated their physical whiteboards. Within 30 days, their average cycle time dropped by 2.4 days, and technician efficiency increased by 18%.
-            </motion.p>
-            
-            <motion.div variants={itemVariants} className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full border border-zinc-800 flex items-center justify-center bg-zinc-900 text-zinc-400 font-bold">JD</div>
-              <div>
-                <strong className="block text-zinc-50 font-['Outfit']">Jameson Davies</strong>
-                <span className="text-sm text-zinc-500 font-mono tracking-widest uppercase">Owner, Precision Auto Works</span>
+            {/* Feature 1 (Large) */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="md:col-span-2 relative rounded-[2rem] bg-zinc-900/40 border border-zinc-800/60 p-8 overflow-hidden group hover:border-zinc-700 transition-colors"
+            >
+              <div className="absolute top-0 right-0 w-64 h-64 bg-brand-500/10 blur-[80px] rounded-full group-hover:bg-brand-500/20 transition-colors" />
+              <div className="relative z-10 h-full flex flex-col justify-between">
+                <div className="w-12 h-12 rounded-xl bg-zinc-800/80 border border-zinc-700 flex items-center justify-center mb-12">
+                  <ChartLineUp size={24} className="text-brand-500" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold mb-3 text-zinc-50">Visual Production Board</h3>
+                  <p className="text-zinc-400 leading-relaxed max-w-md">Track every vehicle's exact stage in real-time. Know instantly what's in the paint booth and what's waiting on parts.</p>
+                </div>
               </div>
             </motion.div>
-          </motion.div>
 
+            {/* Feature 2 */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="relative rounded-[2rem] bg-zinc-900/40 border border-zinc-800/60 p-8 overflow-hidden group hover:border-zinc-700 transition-colors"
+            >
+              <div className="w-12 h-12 rounded-xl bg-zinc-800/80 border border-zinc-700 flex items-center justify-center mb-12">
+                <Lightning size={24} className="text-yellow-500" />
+              </div>
+              <h3 className="text-2xl font-bold mb-3 text-zinc-50">Lightning Fast</h3>
+              <p className="text-zinc-400 leading-relaxed">Built on edge infrastructure. Zero loading spinners. Instant updates across all devices.</p>
+            </motion.div>
+
+            {/* Feature 3 */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+              className="relative rounded-[2rem] bg-zinc-900/40 border border-zinc-800/60 p-8 overflow-hidden group hover:border-zinc-700 transition-colors"
+            >
+              <div className="w-12 h-12 rounded-xl bg-zinc-800/80 border border-zinc-700 flex items-center justify-center mb-12">
+                <ShieldCheck size={24} className="text-emerald-500" />
+              </div>
+              <h3 className="text-2xl font-bold mb-3 text-zinc-50">Bank-Grade Security</h3>
+              <p className="text-zinc-400 leading-relaxed">Your customer data and financials are protected by state-of-the-art encryption and Row Level Security.</p>
+            </motion.div>
+
+            {/* Feature 4 (Large) */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.3 }}
+              className="md:col-span-2 relative rounded-[2rem] bg-zinc-900/40 border border-zinc-800/60 p-8 overflow-hidden group hover:border-zinc-700 transition-colors flex items-center"
+            >
+              <div className="relative z-10 flex-1">
+                <h3 className="text-2xl font-bold mb-3 text-zinc-50">One-Click Invoicing</h3>
+                <p className="text-zinc-400 leading-relaxed max-w-md">Turn an approved estimate into a final invoice and collect payment instantly via Stripe. No more chasing checks.</p>
+                <Link href="/features" className="inline-flex items-center gap-2 mt-6 text-brand-400 hover:text-brand-300 font-semibold transition-colors">
+                  Explore all features <ArrowRight weight="bold" />
+                </Link>
+              </div>
+              <div className="hidden md:block flex-1 relative h-48">
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-64 h-48 bg-zinc-800/50 rounded-xl border border-zinc-700 transform rotate-12 shadow-2xl backdrop-blur-sm p-4 flex flex-col gap-3">
+                  <div className="h-4 w-1/3 bg-zinc-700 rounded-full" />
+                  <div className="h-8 w-1/2 bg-brand-500/20 text-brand-400 rounded-lg flex items-center px-3 font-mono text-sm">$4,250.00</div>
+                  <div className="h-10 w-full bg-zinc-700 rounded-lg mt-auto flex items-center justify-center text-xs text-zinc-400 font-bold uppercase">Pay Now</div>
+                </div>
+              </div>
+            </motion.div>
+
+          </div>
         </div>
       </section>
 
-      {/* Atmospheric Full-Bleed Feature */}
-      <section className="relative w-full h-[80vh] min-h-[600px] flex items-center justify-center px-6 overflow-hidden">
-        <div className="absolute inset-0">
-          <img src="/floor.png" alt="Massive collision center floor" className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent" />
+      {/* Full-Bleed Image Section */}
+      <section className="py-20 px-6">
+        <div className="max-w-7xl mx-auto rounded-[3rem] overflow-hidden relative h-[600px] shadow-2xl flex items-center justify-center text-center">
+          <img src="/floor.png" alt="Shop Floor" className="absolute inset-0 w-full h-full object-cover opacity-40 grayscale mix-blend-luminosity" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-transparent to-[#030303]" />
+          
+          <div className="relative z-10 max-w-3xl px-6">
+            <h2 className="text-4xl md:text-6xl font-bold tracking-tighter mb-8 font-['Outfit'] text-balance">Built for the mechanics, not just the accountants.</h2>
+            <p className="text-xl text-zinc-300 mb-10 font-light">The first shop management system that your technicians will actually want to use. Minimal taps, maximum touch time.</p>
+          </div>
         </div>
-        
-        <div className="relative z-10 max-w-4xl mx-auto text-center flex flex-col items-center mt-32">
-          <h2 className="text-4xl md:text-6xl font-bold text-white tracking-tighter mb-6 font-['Outfit'] text-balance shadow-black/50 drop-shadow-2xl">
-            See the entire floor. <br/> From anywhere.
-          </h2>
-          <p className="text-xl text-zinc-300 max-w-2xl mb-10 leading-relaxed font-light shadow-black/50 drop-shadow-lg">
-            The visual production board tracks every vehicle, part exception, and labor hour in real time. Know exactly what's holding up the booth before it costs you money.
-          </p>
-          <Link href="/features" 
-            className="flex items-center justify-center gap-2 bg-brand-500 text-zinc-950 px-10 py-4 rounded-full font-bold hover:bg-brand-400 hover:scale-105 active:scale-95 transition-all shadow-xl shadow-brand-500/20"
-          >
-            Explore Platform Features
-          </Link>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-24 px-6 relative z-10">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-5xl font-bold tracking-tighter mb-4 font-['Outfit']">Frequently Asked Questions</h2>
+            <p className="text-zinc-400 text-lg">Everything you need to know about switching to InGarage.</p>
+          </div>
+          <div className="space-y-6">
+            <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-2xl p-6">
+              <h3 className="text-xl font-bold text-zinc-50 mb-2">How long does it take to migrate my shop?</h3>
+              <p className="text-zinc-400 leading-relaxed">Most shops are fully migrated and trained within 48 hours. Our automated import tools can pull your existing customer and job history directly from legacy systems.</p>
+            </div>
+            <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-2xl p-6">
+              <h3 className="text-xl font-bold text-zinc-50 mb-2">Do technicians need their own devices?</h3>
+              <p className="text-zinc-400 leading-relaxed">InGarage is fully responsive. Technicians can clock in and out using their personal smartphones, or you can mount shared tablets in each bay. The choice is yours.</p>
+            </div>
+            <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-2xl p-6">
+              <h3 className="text-xl font-bold text-zinc-50 mb-2">Can I process payments directly through the app?</h3>
+              <p className="text-zinc-400 leading-relaxed">Yes! InGarage integrates directly with Stripe. You can send an invoice link via SMS or email, and customers can pay securely from their phones before they even arrive to pick up their car.</p>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-32 px-6 bg-zinc-950 relative z-10">
-        <div className="max-w-5xl mx-auto rounded-[3rem] p-16 text-center relative overflow-hidden border border-zinc-800/50 liquid-glass">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-brand-500/10 blur-[150px] pointer-events-none" />
+      <section className="py-32 px-6 relative z-10 overflow-hidden">
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[100vw] h-[50vh] bg-brand-500/10 blur-[150px] rounded-full pointer-events-none" />
+        
+        <div className="max-w-4xl mx-auto text-center relative z-10 bg-zinc-900/30 border border-zinc-800/50 backdrop-blur-2xl rounded-[3rem] p-12 md:p-24 shadow-2xl">
+          <h2 className="text-4xl md:text-5xl font-bold tracking-tighter mb-6 font-['Outfit']">Ready to upgrade your shop?</h2>
+          <p className="text-lg text-zinc-400 mb-10 max-w-xl mx-auto">Join the top-tier collision centers that have completely eliminated chaos from their floor.</p>
           
-          <div className="relative z-10 flex flex-col items-center">
-            <h2 className="text-4xl md:text-6xl font-bold text-white tracking-tighter mb-6 font-['Outfit'] text-balance">
-              Ready to take control?
-            </h2>
-            <p className="text-xl text-zinc-400 max-w-2xl mb-12">
-              Join top-tier collision centers upgrading from legacy systems to a modern, fast, and secure platform.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-              <Link href="/register" 
-                className="flex items-center justify-center gap-2 bg-white text-zinc-950 px-10 py-4 rounded-full font-bold hover:scale-105 active:scale-95 transition-all shadow-xl shadow-white/10"
-              >
-                Get Started Free
-              </Link>
-              <Link href="/pricing" 
-                className="flex items-center justify-center gap-2 bg-transparent text-white border border-white/20 px-10 py-4 rounded-full font-bold hover:bg-white/5 active:scale-95 transition-all"
-              >
-                View Pricing
-              </Link>
-            </div>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link href="/register" 
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-brand-500 text-white px-10 py-4 rounded-full font-bold hover:bg-brand-600 transition-all hover:scale-105 active:scale-95 shadow-[0_0_40px_rgba(239,68,68,0.3)]"
+            >
+              Start Your Free Trial
+            </Link>
+            <Link href="/pricing" 
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-transparent text-zinc-300 border border-zinc-700 px-10 py-4 rounded-full font-bold hover:bg-zinc-800 transition-all"
+            >
+              View Pricing
+            </Link>
           </div>
         </div>
       </section>

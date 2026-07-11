@@ -1,0 +1,18 @@
+{
+  "runtime": "edge",
+  "name": "pay/[id]",
+  "deploymentTarget": "v8-worker",
+  "entrypoint": "index.js",
+  "assets": [],
+  "framework": {
+    "slug": "nextjs",
+    "version": "15.0.3"
+  },
+  "environment": {
+    "__NEXT_BUILD_ID": "fJh2mYinuIhNuWKtolSJD",
+    "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY": "+den8praQrhEtAysu/ZMDt8dBU5ZR3G0UQgZuhoUJEo=",
+    "__NEXT_PREVIEW_MODE_ID": "a65bd1a173a1a97043db268f8a0ef48c",
+    "__NEXT_PREVIEW_MODE_ENCRYPTION_KEY": "5c0b103f733a00401fe16ae1e304869e0aab32e2ec102ed888c7b550de760391",
+    "__NEXT_PREVIEW_MODE_SIGNING_KEY": "5a141591a11544f4d9427455f282824acf3c294acf3b3dd403ba9677cb9bf117"
+  }
+}
