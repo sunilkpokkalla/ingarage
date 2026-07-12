@@ -1,11 +1,11 @@
 "use client";
 import Link from 'next/link';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { motion, useScroll, useTransform, Variants } from 'framer-motion';
 import { ArrowRight, Play, CheckCircle, Lightning, ShieldCheck, ChartLineUp } from '@phosphor-icons/react';
 import { useRef } from 'react';
 import { TronCarBackground } from '@/components/TronCarBackground';
 
-const FADE_UP_ANIMATION_VARIANTS = {
+const FADE_UP_ANIMATION_VARIANTS: Variants = {
   hidden: { opacity: 0, y: 30 },
   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 80, damping: 20 } },
 };
@@ -189,6 +189,80 @@ export default function MarketingPage() {
             </motion.div>
 
           </div>
+        </div>
+      </section>
+
+      {/* Premium Testimonial Section */}
+      <section className="py-32 px-6 relative z-10">
+        <div className="max-w-7xl mx-auto relative">
+          
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="relative w-full bg-zinc-900/40 border border-zinc-800/60 rounded-[3rem] overflow-hidden shadow-2xl backdrop-blur-xl group"
+          >
+            {/* Background Image that fades into the card */}
+            <div className="absolute inset-0 md:w-1/2 lg:w-[45%] right-0 ml-auto h-full z-0 opacity-60 md:opacity-100 mix-blend-luminosity grayscale group-hover:grayscale-0 group-hover:mix-blend-normal transition-all duration-1000">
+              <img src="/owner.png" alt="Shop Owner" className="w-full h-full object-cover object-top" />
+              <div className="absolute inset-0 bg-gradient-to-r from-zinc-900 via-zinc-900/80 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-transparent to-transparent" />
+              <div className="absolute inset-0 bg-brand-900/20 mix-blend-multiply" />
+            </div>
+
+            {/* Floating Stat Badges */}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, x: 20 }}
+              whileInView={{ opacity: 1, scale: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.4 }}
+              className="absolute hidden lg:flex top-12 right-12 z-20 bg-zinc-950/80 border border-brand-500/30 backdrop-blur-md rounded-2xl p-4 items-center gap-4 shadow-xl"
+            >
+              <div className="w-10 h-10 rounded-full bg-brand-500/20 flex items-center justify-center text-brand-500">
+                <ChartLineUp size={20} weight="bold" />
+              </div>
+              <div>
+                <p className="text-brand-400 font-bold text-xl leading-none">-2.4 Days</p>
+                <p className="text-zinc-400 text-xs uppercase tracking-widest mt-1">Cycle Time</p>
+              </div>
+            </motion.div>
+
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, x: 20 }}
+              whileInView={{ opacity: 1, scale: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.5 }}
+              className="absolute hidden lg:flex bottom-12 right-24 z-20 bg-zinc-950/80 border border-emerald-500/30 backdrop-blur-md rounded-2xl p-4 items-center gap-4 shadow-xl"
+            >
+              <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500">
+                <Lightning size={20} weight="bold" />
+              </div>
+              <div>
+                <p className="text-emerald-400 font-bold text-xl leading-none">+18%</p>
+                <p className="text-zinc-400 text-xs uppercase tracking-widest mt-1">Efficiency</p>
+              </div>
+            </motion.div>
+
+            <div className="relative z-10 w-full md:w-[65%] lg:w-[55%] p-10 md:p-16 lg:p-20 flex flex-col justify-center min-h-[500px]">
+              <div className="w-14 h-14 rounded-full bg-brand-500 text-zinc-50 flex items-center justify-center mb-10 shadow-[0_0_20px_rgba(239,68,68,0.4)]">
+                <span className="text-4xl font-serif leading-none pt-2">"</span>
+              </div>
+              
+              <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-zinc-50 mb-8 font-serif leading-[1.15] text-balance">
+                "We used to spend three hours a day just figuring out where cars were. Now, InGarage tells us instantly."
+              </h2>
+              
+              <div className="flex items-center gap-5 mt-auto pt-8 border-t border-zinc-800/80">
+                <div className="w-14 h-14 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 font-bold tracking-widest">
+                  JD
+                </div>
+                <div>
+                  <h4 className="text-zinc-50 font-bold text-lg">Jameson Davies</h4>
+                  <p className="text-brand-400 text-sm font-mono tracking-widest uppercase mt-1">Owner, Precision Auto Works</p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
         </div>
       </section>
 

@@ -35,19 +35,32 @@ export default function Integrations() {
   ];
 
   return (
-    <div className="w-full min-h-screen bg-zinc-950 flex flex-col items-center pt-32 px-6 pb-24">
-      <div className="max-w-6xl w-full">
-        <div className="text-center mb-20">
-          <p className="text-brand-500 font-bold uppercase tracking-widest text-sm mb-4">Integrations</p>
-          <h1 className="text-4xl md:text-6xl font-bold text-zinc-50 tracking-tighter mb-6 font-['Outfit']">
-            Connect your tools.
+    <div className="w-full min-h-[100dvh] bg-transparent pt-32 px-6 pb-24 font-sans text-zinc-50 overflow-hidden relative z-10">
+      
+      {/* Split-Screen Hero */}
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mb-24">
+        <div>
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-950/30 border border-brand-900/50 text-sm font-medium text-brand-500 mb-8">
+            <Database size={16} />
+            Ecosystem
+          </div>
+          <h1 className="text-4xl md:text-6xl font-bold tracking-tighter mb-6 font-serif text-balance leading-tight">
+            Connects with everything.
           </h1>
-          <p className="text-zinc-400 max-w-2xl mx-auto text-lg">
-            InGarage plays nicely with the software you already use. Sync your accounting, fetch repair data, and process payments effortlessly.
+          <p className="text-xl text-zinc-400 max-w-lg leading-relaxed">
+            InGarage seamlessly connects with the tools you already use. From accounting to estimating, stop double-entering data and start automating your workflow.
           </p>
         </div>
+        <div className="relative w-full aspect-[4/3] rounded-[2.5rem] overflow-hidden shadow-2xl border border-zinc-800">
+          <img src="/hero.png" alt="Mechanic using tablet" className="absolute inset-0 w-full h-full object-cover opacity-80 mix-blend-luminosity hover:mix-blend-normal transition-all duration-700" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-brand-900/40 to-transparent mix-blend-multiply pointer-events-none" />
+        </div>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+      {/* Integrations Grid */}
+      <div className="max-w-7xl mx-auto">
+        <h2 className="text-2xl font-bold mb-8 text-zinc-100">Featured Integrations</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {integrations.map((integration, i) => (
             <div key={i} className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-8 hover:bg-zinc-900 transition-colors flex items-start gap-6 group">
               <div className="w-16 h-16 rounded-2xl bg-zinc-950 border border-zinc-800 flex items-center justify-center flex-shrink-0 group-hover:border-brand-500/50 transition-colors">

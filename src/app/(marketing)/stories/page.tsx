@@ -25,16 +25,24 @@ export default function Stories() {
   ];
 
   return (
-    <div className="w-full min-h-screen bg-zinc-950 flex flex-col items-center pt-32 px-6 pb-24">
-      <div className="max-w-6xl w-full">
-        <div className="text-center mb-20">
-          <p className="text-brand-500 font-bold uppercase tracking-widest text-sm mb-4">Customer Success</p>
-          <h1 className="text-4xl md:text-6xl font-bold text-zinc-50 tracking-tighter mb-6 font-['Outfit']">
-            Built for modern shops.
-          </h1>
-          <p className="text-zinc-400 max-w-2xl mx-auto text-lg">
-            See how top collision centers and independent repair shops are transforming their operations and cycle times with InGarage.
-          </p>
+    <div className="w-full min-h-[100dvh] bg-transparent pt-24 px-6 pb-24 font-sans text-zinc-50 overflow-hidden relative z-10">
+      <div className="max-w-6xl w-full mx-auto relative z-10">
+        
+        {/* Photo-backed Hero Section */}
+        <div className="relative w-full h-[500px] rounded-[3rem] overflow-hidden mb-24 shadow-2xl border border-zinc-800">
+          <img src="/owner.png" alt="Shop Owner" className="absolute inset-0 w-full h-full object-cover opacity-60 grayscale mix-blend-luminosity hover:mix-blend-normal hover:grayscale-0 transition-all duration-700" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-transparent to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-brand-900/60 to-transparent mix-blend-multiply pointer-events-none" />
+          
+          <div className="absolute bottom-12 left-12 right-12 z-10">
+            <p className="text-brand-400 font-bold uppercase tracking-widest text-sm mb-4">Customer Success</p>
+            <h1 className="text-4xl md:text-6xl font-bold text-zinc-50 tracking-tighter mb-4 font-serif text-balance leading-tight">
+              Built for modern shops.
+            </h1>
+            <p className="text-zinc-300 max-w-2xl text-lg leading-relaxed">
+              See how top collision centers and independent repair shops are transforming their operations and cycle times with InGarage.
+            </p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

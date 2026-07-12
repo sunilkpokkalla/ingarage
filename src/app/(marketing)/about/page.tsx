@@ -3,20 +3,25 @@ import { CarFront, ShieldCheck } from 'lucide-react';
 
 export default function About() {
   return (
-    <div className="w-full relative py-20 px-6">
-      <div className="max-w-4xl mx-auto">
+    <div className="w-full relative py-32 px-6 bg-transparent text-zinc-50 z-10">
+      <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-900 border border-zinc-800 text-sm font-medium text-brand-600 mb-8 shadow-sm">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-950/30 border border-brand-900/50 text-sm font-medium text-brand-500 mb-8 shadow-sm">
             <CarFront size={16} />
             Our Story
           </div>
-          <h1 className="text-4xl lg:text-5xl font-bold text-zinc-50 tracking-tight mb-6">
-            Built by collision experts, for collision experts.
+          <h1 className="text-4xl md:text-6xl font-bold tracking-tighter mb-12 font-serif text-balance leading-tight">
+            Built by collision experts,<br/>for collision experts.
           </h1>
         </div>
 
-        <div className="prose prose-lg prose-slate max-w-none text-zinc-400 space-y-8 bg-zinc-900 p-12 rounded-3xl border border-zinc-800 shadow-sm">
-          <p className="text-xl leading-relaxed font-medium text-zinc-50">
+        <div className="relative w-full h-[400px] md:h-[600px] rounded-[3rem] overflow-hidden mb-16 shadow-2xl border border-zinc-800">
+          <img src="/floor.png" alt="Collision center floor" className="absolute inset-0 w-full h-full object-cover opacity-80 mix-blend-luminosity hover:mix-blend-normal transition-all duration-700" />
+          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent pointer-events-none" />
+        </div>
+
+        <div className="max-w-3xl mx-auto prose prose-lg prose-invert prose-zinc text-zinc-400 space-y-8 bg-zinc-900/40 p-8 md:p-16 rounded-[3rem] border border-zinc-800/60 shadow-xl backdrop-blur-sm">
+          <p className="text-xl md:text-2xl leading-relaxed font-serif text-zinc-100 font-medium text-balance">
             For decades, the collision repair industry has been held hostage by clunky, monopolistic legacy software. Software that takes hours to learn, crashes constantly, and makes a simple parts order feel like a chore.
           </p>
           <p>
