@@ -14,8 +14,23 @@ export default function Register() {
   const [error, setError] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [resendStatus, setResendStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const router = useRouter();
   const supabase = createClient();
+
+  const handleResendEmail = async () => {
+    setResendStatus('loading');
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+    });
+    if (error) {
+      setResendStatus('error');
+    } else {
+      setResendStatus('success');
+      setTimeout(() => setResendStatus('idle'), 5000); // Reset button after 5s
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,8 +100,20 @@ export default function Register() {
               We've sent a confirmation link to <span className="font-medium text-zinc-300">{email}</span>. 
               Please click the link in the email to activate your account and sign in.
             </p>
-            <div className="pt-4">
-              <Link href="/login" className="text-brand-400 hover:text-brand-300 font-medium text-sm transition-colors">
+            <div className="pt-4 space-y-3">
+              <button
+                onClick={handleResendEmail}
+                disabled={resendStatus === 'loading' || resendStatus === 'success'}
+                className="w-full text-zinc-300 bg-zinc-800 hover:bg-zinc-700 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                {resendStatus === 'loading' ? 'Sending...' : 
+                 resendStatus === 'success' ? 'Email Sent!' : 
+                 'Resend confirmation email'}
+              </button>
+              {resendStatus === 'error' && (
+                <p className="text-red-400 text-xs">Failed to resend. Please try again.</p>
+              )}
+              <Link href="/login" className="block text-brand-400 hover:text-brand-300 font-medium text-sm transition-colors mt-2">
                 Return to sign in
               </Link>
             </div>
