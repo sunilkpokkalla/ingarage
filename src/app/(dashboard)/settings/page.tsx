@@ -72,8 +72,11 @@ export default function Settings() {
 
   useEffect(() => {
     if (settings) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsActive(settings.isActive);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setProvider(settings.provider || 'STRIPE');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPublicKey(settings.publicKey || '');
     }
   }, [settings]);

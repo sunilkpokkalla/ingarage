@@ -77,15 +77,110 @@ export default function MarketingPage() {
           </motion.div>
         </motion.div>
 
-        {/* Hero Image / Dashboard Preview */}
+        {/* Hero Image / Dashboard Showcase */}
         <motion.div 
           style={{ y, opacity }}
           className="relative mt-24 w-full max-w-6xl mx-auto"
         >
           <div className="absolute -inset-1 bg-gradient-to-b from-brand-500/30 to-transparent blur-2xl opacity-50 rounded-[3rem]" />
-          <div className="relative rounded-[2rem] border border-zinc-800/80 bg-zinc-900/50 p-2 md:p-4 backdrop-blur-xl shadow-2xl">
-            <div className="rounded-[1.5rem] overflow-hidden border border-zinc-800">
-              <img src="/hero.png" alt="InGarage Dashboard" className="w-full h-auto object-cover" />
+          <div className="relative rounded-[2rem] border border-zinc-800/80 bg-zinc-900/50 p-2 md:p-4 backdrop-blur-xl shadow-2xl overflow-hidden group">
+            
+            <div className="relative rounded-[1.5rem] overflow-hidden border border-zinc-800 bg-zinc-950 min-h-[400px] md:min-h-[600px] flex items-center justify-center">
+              
+              {/* Main Image with Vignette & Dimming */}
+              <img src="/hero.png" alt="InGarage Workflow" className="absolute inset-0 w-full h-full object-cover object-center opacity-40 group-hover:opacity-60 transition-opacity duration-700" />
+              <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-zinc-950/80" />
+              <div className="absolute inset-0 bg-gradient-to-r from-zinc-950 via-transparent to-zinc-950" />
+              
+              {/* Floating UI Elements Container */}
+              <div className="relative z-10 w-full h-full p-8 md:p-12">
+                
+                {/* Mock Top Nav */}
+                <motion.div 
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5, duration: 0.8 }}
+                  className="w-full max-w-2xl mx-auto h-12 bg-zinc-900/60 backdrop-blur-md border border-zinc-800/80 rounded-xl flex items-center px-4 justify-between shadow-2xl mb-12"
+                >
+                  <div className="flex gap-2 items-center">
+                    <div className="w-3 h-3 rounded-full bg-zinc-700" />
+                    <div className="w-3 h-3 rounded-full bg-zinc-700" />
+                    <div className="w-3 h-3 rounded-full bg-zinc-700" />
+                  </div>
+                  <div className="h-4 w-48 bg-zinc-800 rounded-full" />
+                  <div className="w-6 h-6 rounded-full bg-brand-500/20 flex items-center justify-center">
+                    <div className="w-2 h-2 rounded-full bg-brand-500" />
+                  </div>
+                </motion.div>
+
+                {/* Floating Action Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto mt-20">
+                  
+                  {/* Card 1: Repair Status */}
+                  <motion.div 
+                    initial={{ opacity: 0, x: -30, rotate: -5 }}
+                    animate={{ opacity: 1, x: 0, rotate: -2 }}
+                    transition={{ delay: 0.7, type: "spring", stiffness: 100 }}
+                    whileHover={{ scale: 1.05, rotate: 0 }}
+                    className="bg-zinc-900/80 backdrop-blur-xl border border-zinc-700/50 p-6 rounded-2xl shadow-2xl"
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="text-zinc-50 font-bold font-['Outfit'] text-lg">Aston Martin DB12</div>
+                      <div className="px-3 py-1 bg-brand-500/20 text-brand-400 text-xs font-bold rounded-full uppercase tracking-wider border border-brand-500/30">
+                        In Paint
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-zinc-400">Technician</span>
+                        <span className="text-zinc-100 font-medium">Mike R.</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-zinc-400">Est. Completion</span>
+                        <span className="text-zinc-100 font-medium">Today, 4:00 PM</span>
+                      </div>
+                    </div>
+                    <div className="mt-5 w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: "75%" }}
+                        transition={{ delay: 1.5, duration: 1.5, ease: "easeOut" }}
+                        className="h-full bg-brand-500 rounded-full"
+                      />
+                    </div>
+                  </motion.div>
+
+                  {/* Card 2: Quick Metrics */}
+                  <motion.div 
+                    initial={{ opacity: 0, x: 30, rotate: 5 }}
+                    animate={{ opacity: 1, x: 0, rotate: 2 }}
+                    transition={{ delay: 0.9, type: "spring", stiffness: 100 }}
+                    whileHover={{ scale: 1.05, rotate: 0 }}
+                    className="bg-zinc-900/80 backdrop-blur-xl border border-zinc-700/50 p-6 rounded-2xl shadow-2xl mt-12 md:mt-24"
+                  >
+                    <div className="flex items-center gap-4 mb-6">
+                      <div className="w-12 h-12 bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-500/20">
+                        <CheckCircle size={24} className="text-emerald-500" weight="fill" />
+                      </div>
+                      <div>
+                        <div className="text-zinc-400 text-sm font-medium">Daily Revenue</div>
+                        <div className="text-2xl font-bold text-zinc-50 font-['Outfit']">$14,250</div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-zinc-800/50 p-3 rounded-xl border border-zinc-700/50">
+                        <div className="text-zinc-500 text-xs uppercase font-bold tracking-wider mb-1">Delivered</div>
+                        <div className="text-zinc-100 font-bold text-lg">4 Cars</div>
+                      </div>
+                      <div className="bg-zinc-800/50 p-3 rounded-xl border border-zinc-700/50">
+                        <div className="text-zinc-500 text-xs uppercase font-bold tracking-wider mb-1">Intake</div>
+                        <div className="text-zinc-100 font-bold text-lg">6 Cars</div>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                </div>
+              </div>
             </div>
           </div>
         </motion.div>
