@@ -6,6 +6,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, AlertTriangle, XCircle, CheckCircle, ShieldCheck } from 'lucide-react';
 import { calculateSellingPrice } from '@/utils/pricing';
 
+export const runtime = 'edge';
+
 function currency(value: number) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',

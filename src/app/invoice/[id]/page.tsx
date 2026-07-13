@@ -6,6 +6,8 @@ import { createClient } from '@/utils/supabase/client';
 import { calculateSellingPrice } from '@/utils/pricing';
 import { CarFront, AlertCircle, CheckCircle2 } from 'lucide-react';
 
+export const runtime = 'edge';
+
 function currency(value: number) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
