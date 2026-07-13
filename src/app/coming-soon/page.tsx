@@ -1,7 +1,10 @@
 "use client";
 import { Construction } from 'lucide-react';
 
-export default function ComingSoon({ title, description }: { title: string, description: string }) {
+export default function ComingSoon() {
+  const title = 'Coming Soon';
+  const description = 'This module is under construction. Check back shortly!';
+
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-6 text-center h-full min-h-[500px]">
       <div className="w-24 h-24 bg-zinc-900/50 rounded-full flex items-center justify-center mb-6 border-4 border-slate-100 shadow-2xl shadow-black/50 ring-1 ring-surface-700">

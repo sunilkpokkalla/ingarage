@@ -1,6 +1,4 @@
 "use client";
-import { BookOpen, FileVideo, Article, ArrowRight } from 'phosphor-react';
-// Wait, phosphor-react might not be installed, we use @phosphor-icons/react. Let me fix the import.
 import { BookOpen as BookOpenIcon, VideoCamera, FileText, ArrowRight as ArrowRightIcon } from '@phosphor-icons/react';
 
 export default function Resources() {

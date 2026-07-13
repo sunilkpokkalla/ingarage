@@ -43,6 +43,7 @@ export default function DVIModal({ job, isOpen, onClose }: { job: any, isOpen: b
         const existing = existingData.find(item => item.name === checkName);
         return existing || { name: checkName, status: 'UNCHECKED' as InspectionStatus, notes: '' };
       });
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setItems(merged);
     }
   }, [isOpen, job]);

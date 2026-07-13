@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/utils/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { getActiveTenantId } from '@/utils/tenant';
 import {
   FileCheck2,
   Search,
@@ -70,7 +71,7 @@ export default function Documents() {
         .join('');
       const dataHex = `\\x${hexString}`;
 
-      const activeTenantId = user?.tenantId || 'cmr4vjp1q0000aluvn85iirke';
+      const activeTenantId = getActiveTenantId(user);
       const { data, error } = await supabase.from('Document').insert([{
         id: crypto.randomUUID(),
         tenantId: activeTenantId,

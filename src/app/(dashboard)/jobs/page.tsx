@@ -2,13 +2,15 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { createClient } from '@/utils/supabase/client';
-import { Wrench, Search, Plus, Clock, CheckCircle2, AlertCircle, ClipboardCheck, Share } from 'lucide-react';
+import { Wrench, Search, Plus, Clock, CheckCircle2, AlertCircle, ClipboardCheck, Share, Pencil } from 'lucide-react';
 import NewJobModal from '@/components/NewJobModal';
 import DVIModal from '@/components/DVIModal';
+import EditJobModal from '@/components/EditJobModal';
 
 export default function Jobs() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [inspectingJob, setInspectingJob] = useState<any>(null);
+  const [editingJob, setEditingJob] = useState<any>(null);
   const supabase = createClient();
 
   const { data: jobs = [], isLoading } = useQuery({
@@ -81,6 +83,8 @@ export default function Jobs() {
                 <span className={`px-2 py-1 rounded text-xs font-semibold ${
                   job.status === 'Ready' ? 'bg-emerald-500/10 text-emerald-400' :
                   job.status === 'Estimate Pending' ? 'bg-purple-500/10 text-purple-400' :
+                  job.status === 'Estimate Declined' ? 'bg-rose-500/10 text-rose-400' :
+                  job.status === 'Completed' ? 'bg-emerald-500/10 text-emerald-400' :
                   job.status === 'Intake' ? 'bg-brand-500/10 text-brand-400' :
                   'bg-amber-500/10 text-amber-400'
                 }`}>
@@ -111,12 +115,19 @@ export default function Jobs() {
                         <Share size={14} /> Share
                       </button>
                     )}
-                    <button 
+                    <button
                       onClick={() => setInspectingJob(job)}
                       className="text-zinc-400 hover:text-brand-500 transition-colors flex items-center gap-1 text-sm font-medium"
                       title="Digital Vehicle Inspection"
                     >
                       <ClipboardCheck size={18} /> Inspect
+                    </button>
+                    <button
+                      onClick={() => setEditingJob(job)}
+                      className="text-zinc-400 hover:text-brand-500 transition-colors flex items-center gap-1 text-sm font-medium"
+                      title="Edit job status, labor, and details"
+                    >
+                      <Pencil size={16} /> Edit
                     </button>
                     {job.stage === 100 ? (
                       <CheckCircle2 size={18} className="text-emerald-500" />
@@ -133,6 +144,7 @@ export default function Jobs() {
 
       <NewJobModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
       <DVIModal job={inspectingJob} isOpen={!!inspectingJob} onClose={() => setInspectingJob(null)} />
+      <EditJobModal job={editingJob} isOpen={!!editingJob} onClose={() => setEditingJob(null)} />
     </div>
   );
 }

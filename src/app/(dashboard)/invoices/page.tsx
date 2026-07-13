@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/utils/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { getActiveTenantId } from '@/utils/tenant';
 import { InvoiceModal } from '@/components/InvoiceModal';
 import { calculateSellingPrice } from '@/utils/pricing';
 import {
@@ -12,6 +13,7 @@ import {
   FileText,
   Download,
   CreditCard,
+  Share2,
   X
 } from 'lucide-react';
 
@@ -31,7 +33,8 @@ export default function Invoices() {
   const [printOnOpen, setPrintOnOpen] = useState(false);
   const [formData, setFormData] = useState({
     jobId: '',
-    discount: 0
+    discount: 0,
+    taxRate: 0
   });
 
   const { data: invoices = [], isLoading } = useQuery({
@@ -70,7 +73,9 @@ export default function Invoices() {
       }
 
       const now = new Date().toISOString();
-      const activeTenantId = user?.tenantId || 'cmr4vjp1q0000aluvn85iirke';
+      const activeTenantId = getActiveTenantId(user);
+      const taxRate = Number(newInvoice.taxRate) || 0;
+      const tax = Math.max(0, (subtotal - newInvoice.discount)) * (taxRate / 100);
 
       const { data, error } = await supabase.from('Invoice').insert([{
         id: crypto.randomUUID(),
@@ -80,30 +85,34 @@ export default function Invoices() {
         jobId: newInvoice.jobId,
         discount: newInvoice.discount,
         subtotal,
+        taxRate,
+        tax: Math.round(tax * 100) / 100,
         status: 'Draft'
       }]).select().single();
-      
+
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       setIsModalOpen(false);
-      setFormData({ jobId: '', discount: 0 });
+      setFormData({ jobId: '', discount: 0, taxRate: 0 });
     },
     onError: (err: any) => {
       console.error("Database Insert Error:", err);
     }
   });
 
+  const invoiceTotal = (inv: any) =>
+    Math.max(0, (inv.subtotal || 0) - (inv.discount || 0)) + (inv.tax || 0);
+
   const collectMutation = useMutation({
     mutationFn: async (inv: any) => {
-      const amountDue = Math.max(0, (inv.subtotal || 0) - (inv.discount || 0));
       const { error } = await supabase
         .from('Invoice')
         .update({
           status: 'Paid',
-          paid: amountDue,
+          paid: invoiceTotal(inv),
           updatedAt: new Date().toISOString()
         })
         .eq('id', inv.id);
@@ -119,10 +128,29 @@ export default function Invoices() {
   });
 
   const handleCollect = (inv: any) => {
-    const amountDue = Math.max(0, (inv.subtotal || 0) - (inv.discount || 0));
-    if (window.confirm(`Record ${currency(amountDue)} as paid for invoice #${inv.id.slice(-6).toUpperCase()}?`)) {
+    if (window.confirm(`Record ${currency(invoiceTotal(inv))} as paid for invoice #${inv.id.slice(-6).toUpperCase()}?`)) {
       collectMutation.mutate(inv);
     }
+  };
+
+  const shareMutation = useMutation({
+    mutationFn: async (inv: any) => {
+      if (inv.status === 'Draft') {
+        const { error } = await supabase
+          .from('Invoice')
+          .update({ status: 'Sent', updatedAt: new Date().toISOString() })
+          .eq('id', inv.id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['invoices'] })
+  });
+
+  const handleShare = (inv: any) => {
+    const url = `${window.location.origin}/invoice/${inv.id}`;
+    navigator.clipboard.writeText(url);
+    shareMutation.mutate(inv);
+    alert('Invoice link copied to clipboard! Send it to the customer to view and reference their bill.');
   };
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -136,7 +164,8 @@ export default function Invoices() {
     e.preventDefault();
     mutation.mutate({
       jobId: formData.jobId,
-      discount: Number(formData.discount)
+      discount: Number(formData.discount),
+      taxRate: Number(formData.taxRate)
     });
   };
 
@@ -184,7 +213,7 @@ export default function Invoices() {
               <div key={inv.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex flex-col hover:border-surface-600 transition-colors">
                 <div className="flex justify-between items-start mb-6">
                   <div>
-                    <h3 className="text-lg font-bold text-zinc-50">{currency(inv.subtotal - inv.discount)}</h3>
+                    <h3 className="text-lg font-bold text-zinc-50">{currency(invoiceTotal(inv))}</h3>
                     <p className="text-zinc-400 text-sm">#{inv.id.slice(-6).toUpperCase()}</p>
                   </div>
                   <span className={`px-2.5 py-1 rounded-md border text-xs font-semibold ${
@@ -224,6 +253,13 @@ export default function Invoices() {
                     className="flex items-center justify-center bg-zinc-900/50 hover:bg-zinc-800 text-zinc-50 px-3 py-2 rounded-lg transition-colors"
                   >
                     <Download size={16} />
+                  </button>
+                  <button
+                    onClick={() => handleShare(inv)}
+                    title="Copy customer link (marks invoice as Sent)"
+                    className="flex items-center justify-center bg-zinc-900/50 hover:bg-zinc-800 text-zinc-50 px-3 py-2 rounded-lg transition-colors"
+                  >
+                    <Share2 size={16} />
                   </button>
                   {inv.status !== 'Paid' && (
                     <button
@@ -275,16 +311,30 @@ export default function Invoices() {
                   Selecting a job will automatically calculate the final subtotal based on logged labor hours and assigned parts.
                 </p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-zinc-400 mb-1">Discount ($) - Optional</label>
-                <input 
-                  type="number" 
-                  min="0"
-                  step="0.01"
-                  value={formData.discount}
-                  onChange={(e) => setFormData({...formData, discount: Number(e.target.value)})}
-                  className="w-full bg-zinc-950 border border-zinc-800 text-zinc-50 px-4 py-2 rounded-lg focus:border-brand-500 focus:outline-none"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-zinc-400 mb-1">Discount ($) - Optional</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.discount}
+                    onChange={(e) => setFormData({...formData, discount: Number(e.target.value)})}
+                    className="w-full bg-zinc-950 border border-zinc-800 text-zinc-50 px-4 py-2 rounded-lg focus:border-brand-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-zinc-400 mb-1">Sales Tax (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={formData.taxRate}
+                    onChange={(e) => setFormData({...formData, taxRate: Number(e.target.value)})}
+                    className="w-full bg-zinc-950 border border-zinc-800 text-zinc-50 px-4 py-2 rounded-lg focus:border-brand-500 focus:outline-none"
+                  />
+                </div>
               </div>
               
               <div className="pt-4 flex gap-3">

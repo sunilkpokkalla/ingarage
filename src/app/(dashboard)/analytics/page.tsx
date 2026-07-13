@@ -184,7 +184,7 @@ export default function Analytics() {
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '12px' }}
                   itemStyle={{ color: '#f4f4f5' }}
-                  formatter={(value: number) => [currency(value), 'Revenue']}
+                  formatter={(value) => [currency(Number(value)), 'Revenue']}
                 />
                 <Area type="monotone" dataKey="revenue" stroke="#f59e0b" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
               </AreaChart>
@@ -212,7 +212,7 @@ export default function Analytics() {
                   cursor={{ fill: '#27272a' }}
                   contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '12px' }}
                   itemStyle={{ color: '#f4f4f5' }}
-                  formatter={(value: number) => [`${value} days`, 'Avg. Cycle Time']}
+                  formatter={(value) => [`${value} days`, 'Avg. Cycle Time']}
                 />
                 <Bar dataKey="days" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={24} />
               </BarChart>

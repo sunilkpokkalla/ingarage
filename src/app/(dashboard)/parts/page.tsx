@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/utils/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { getActiveTenantId } from '@/utils/tenant';
 import { Package, Search, Plus, Wrench, Truck, CheckCircle, PackageCheck, X } from 'lucide-react';
 import { calculateSellingPrice, calculateProfitMargin } from '@/utils/pricing';
 
@@ -41,7 +42,7 @@ export default function Parts() {
   const mutation = useMutation({
     mutationFn: async (newPart: any) => {
       const now = new Date().toISOString();
-      const activeTenantId = user?.tenantId || 'cmr4vjp1q0000aluvn85iirke';
+      const activeTenantId = getActiveTenantId(user);
 
       const { data, error } = await supabase.from('Part').insert([{
         id: crypto.randomUUID(),
@@ -69,9 +70,27 @@ export default function Parts() {
     }
   });
 
+  const statusMutation = useMutation({
+    mutationFn: async ({ partId, status }: { partId: string, status: string }) => {
+      const { error } = await supabase
+        .from('Part')
+        .update({ status, updatedAt: new Date().toISOString() })
+        .eq('id', partId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['parts'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
+      queryClient.invalidateQueries({ queryKey: ['transitParts'] });
+    },
+    onError: (err: any) => {
+      alert('Failed to update part status: ' + (err.message || 'Unknown error'));
+    }
+  });
+
   const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredParts = parts.filter((p: any) => 
+  const filteredParts = parts.filter((p: any) =>
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.supplier.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -148,16 +167,29 @@ export default function Parts() {
                       {part.job?.vehicle}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border ${
+                      <span className={`inline-flex items-center gap-1 px-1 py-0.5 rounded-md text-xs font-medium border ${
                         part.status === 'Ordered' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
                         part.status === 'InTransit' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
                         part.status === 'Received' ? 'bg-brand-500/10 text-brand-400 border-brand-500/20' :
                         'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                       }`}>
-                        {part.status === 'InTransit' && <Truck size={14} />}
-                        {part.status === 'Received' && <PackageCheck size={14} />}
-                        {part.status === 'Installed' && <CheckCircle size={14} />}
-                        {part.status}
+                        <span className="pl-1.5">
+                          {part.status === 'InTransit' && <Truck size={14} />}
+                          {part.status === 'Received' && <PackageCheck size={14} />}
+                          {part.status === 'Installed' && <CheckCircle size={14} />}
+                        </span>
+                        <select
+                          value={part.status}
+                          onChange={(e) => statusMutation.mutate({ partId: part.id, status: e.target.value })}
+                          disabled={statusMutation.isPending}
+                          title="Update part status"
+                          className="bg-transparent text-current text-xs font-medium focus:outline-none cursor-pointer py-0.5 pr-1 [&>option]:bg-zinc-900 [&>option]:text-zinc-200"
+                        >
+                          <option value="Ordered">Ordered</option>
+                          <option value="InTransit">In Transit</option>
+                          <option value="Received">Received</option>
+                          <option value="Installed">Installed</option>
+                        </select>
                       </span>
                     </td>
                     <td className="px-6 py-4">

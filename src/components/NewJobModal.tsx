@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/utils/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { getActiveTenantId } from '@/utils/tenant';
 import { X, AlertCircle } from 'lucide-react';
 
 interface NewJobModalProps {
@@ -25,6 +26,7 @@ export default function NewJobModal({ isOpen, onClose }: NewJobModalProps) {
     drivetrain: 'FWD',
     licensePlate: '',
     insurer: '',
+    laborRate: '120',
     status: 'Intake'
   });
 
@@ -55,9 +57,34 @@ export default function NewJobModal({ isOpen, onClose }: NewJobModalProps) {
     mutationFn: async (newJob: any) => {
       const vehicleString = `${newJob.year} ${newJob.make} ${newJob.model}`.trim();
       const now = new Date().toISOString();
-      
-      // Fallback to the existing database tenant if user session metadata is missing it
-      const activeTenantId = user?.tenantId || 'cmr4vjp1q0000aluvn85iirke';
+      const activeTenantId = getActiveTenantId(user);
+
+      // Find or create the CRM customer record so the job is linked to it
+      let customerId: string;
+      const { data: existingCustomer } = await supabase
+        .from('Customer')
+        .select('id')
+        .ilike('name', newJob.customer)
+        .maybeSingle();
+      if (existingCustomer) {
+        customerId = existingCustomer.id;
+      } else {
+        const { data: createdCustomer, error: customerError } = await supabase
+          .from('Customer')
+          .insert([{
+            id: crypto.randomUUID(),
+            tenantId: activeTenantId,
+            createdAt: now,
+            updatedAt: now,
+            name: newJob.customer,
+            phone: newJob.phone || null,
+            email: newJob.email || null
+          }])
+          .select('id')
+          .single();
+        if (customerError) throw customerError;
+        customerId = createdCustomer.id;
+      }
 
       const { data, error } = await supabase.from('Job').insert([{
         id: crypto.randomUUID(),
@@ -66,10 +93,12 @@ export default function NewJobModal({ isOpen, onClose }: NewJobModalProps) {
         updatedAt: now,
         vehicle: vehicleString,
         customer: newJob.customer,
+        customerId,
         vin: newJob.vin || null,
         insurer: newJob.insurer || 'Customer Pay',
         status: 'Estimate Pending',
         stage: 0,
+        laborRate: Number(newJob.laborRate) || 0,
         phone: newJob.phone || null,
         email: newJob.email || null,
         year: newJob.year || null,
@@ -84,11 +113,12 @@ export default function NewJobModal({ isOpen, onClose }: NewJobModalProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
       onClose();
       setFormData({
         customer: '', phone: '', email: '',
         year: '', make: '', model: '', vin: '', drivetrain: 'FWD', licensePlate: '',
-        insurer: '', status: 'Intake'
+        insurer: '', laborRate: '120', status: 'Intake'
       });
     }
   });
@@ -184,9 +214,13 @@ export default function NewJobModal({ isOpen, onClose }: NewJobModalProps) {
           <div>
             <h3 className="text-sm font-semibold text-brand-400 mb-3 uppercase tracking-wider">Job Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2">
+              <div>
                 <label className="block text-sm font-medium text-zinc-400 mb-1">Insurance Provider</label>
                 <input type="text" placeholder="e.g. State Farm, Geico" value={formData.insurer} onChange={(e) => setFormData({...formData, insurer: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 text-zinc-50 px-4 py-2 rounded-lg focus:border-brand-500 focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-400 mb-1">Labor Rate ($/hr)</label>
+                <input type="number" min="0" step="1" value={formData.laborRate} onChange={(e) => setFormData({...formData, laborRate: e.target.value})} className="w-full bg-zinc-950 border border-zinc-800 text-zinc-50 px-4 py-2 rounded-lg focus:border-brand-500 focus:outline-none" />
               </div>
             </div>
           </div>

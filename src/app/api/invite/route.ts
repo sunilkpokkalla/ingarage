@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'edge';
 import { createClient } from '@supabase/supabase-js';
 
-// We need the service role key to bypass RLS and use the auth admin API to invite users.
-const _url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseUrl = _url.startsWith('http') ? _url : 'https://placeholder.supabase.co';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder';
+// The service role key is required to use the auth admin invite API.
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,44 +15,46 @@ export async function POST(req: NextRequest) {
     }
 
     if (!supabaseServiceKey) {
-      // In development mode, if they haven't set up the service role key, just mock the success so they can test the UI
-      return NextResponse.json({ 
-        message: 'Simulated success because SUPABASE_SERVICE_ROLE_KEY is not set.',
-        user: { email, name, role }
-      });
+      return NextResponse.json(
+        { error: 'Team invites are not configured: set SUPABASE_SERVICE_ROLE_KEY in the deployment environment.' },
+        { status: 501 }
+      );
+    }
+
+    // The invite must be scoped to the caller's shop, so verify the caller's
+    // session token and read the tenant from it — never trust a client-sent tenant.
+    const authHeader = req.headers.get('authorization') || '';
+    const token = authHeader.replace(/^Bearer\s+/i, '');
+    if (!token) {
+      return NextResponse.json({ error: 'Not authenticated.' }, { status: 401 });
     }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
+      auth: { autoRefreshToken: false, persistSession: false }
     });
 
-    // 1. Invite the user via Supabase Auth Admin
+    const { data: caller, error: callerError } = await supabaseAdmin.auth.getUser(token);
+    if (callerError || !caller?.user) {
+      return NextResponse.json({ error: 'Invalid session.' }, { status: 401 });
+    }
+
+    const tenantId = caller.user.user_metadata?.tenant_id;
+    const tenantName = caller.user.user_metadata?.tenant_name;
+    if (!tenantId) {
+      return NextResponse.json(
+        { error: 'Your session has no shop linked. Sign out and back in, then retry.' },
+        { status: 400 }
+      );
+    }
+
+    // The on_auth_user_created DB trigger reads tenant_id/role/full_name from
+    // this metadata and creates the public."User" row automatically.
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      data: { name, role }
+      data: { full_name: name, role, tenant_id: tenantId, tenant_name: tenantName }
     });
 
     if (authError) {
       return NextResponse.json({ error: authError.message }, { status: 400 });
-    }
-
-    // 2. Insert the user into the public.User table
-    // The user id from authData.user.id is used to link them
-    const { error: dbError } = await supabaseAdmin.from('User').insert([{
-      id: authData.user.id,
-      email,
-      name,
-      role,
-      password: 'SSO_OR_MAGIC_LINK' // Not used when using Supabase Auth, just fulfilling schema
-    }]);
-
-    if (dbError) {
-      // If the user already exists in the table, that's fine, we invited them.
-      if (dbError.code !== '23505') { // 23505 is unique violation
-        console.error('Failed to insert user profile:', dbError);
-      }
     }
 
     return NextResponse.json({ message: 'User invited successfully.', user: authData.user });

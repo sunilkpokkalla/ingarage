@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/utils/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { getActiveTenantId } from '@/utils/tenant';
 import {
   MessageSquareText,
   Search,
@@ -29,7 +30,7 @@ export default function Customers() {
   const { data: customers = [], isLoading } = useQuery({
     queryKey: ['customers'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('Customer').select('*');
+      const { data, error } = await supabase.from('Customer').select('*, jobs:Job(vehicle)');
       if (error) throw error;
       return data;
     }
@@ -52,7 +53,7 @@ export default function Customers() {
   const createMutation = useMutation({
     mutationFn: async (data: CustomerForm) => {
       const now = new Date().toISOString();
-      const activeTenantId = user?.tenantId || 'cmr4vjp1q0000aluvn85iirke';
+      const activeTenantId = getActiveTenantId(user);
       const { data: result, error } = await supabase.from('Customer').insert([{
         id: crypto.randomUUID(),
         tenantId: activeTenantId,

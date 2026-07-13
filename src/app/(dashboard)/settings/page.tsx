@@ -30,10 +30,12 @@ export default function Settings() {
 
   const inviteMutation = useMutation({
     mutationFn: async (data: any) => {
+      const { data: { session } } = await supabase.auth.getSession();
       const response = await fetch('/api/invite', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token || ''}`
         },
         body: JSON.stringify({
           email: data.email,
@@ -64,7 +66,9 @@ export default function Settings() {
   const { data: settings } = useQuery({
     queryKey: ['paymentSettings'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('TenantPaymentSetting').select('*').maybeSingle();
+      // Secrets never leave the database — this returns only safe fields
+      // plus isSecretSet/isWebhookSet flags.
+      const { data, error } = await supabase.rpc('get_payment_settings');
       if (error) throw error;
       return data;
     }
@@ -83,16 +87,16 @@ export default function Settings() {
 
   const saveMutation = useMutation({
     mutationFn: async (data: any) => {
-      // Upsert needs the current user's tenantId. 
-      // If RLS handles it, we might just omit it, but usually upsert requires the primary key or unique key.
-      // We will try a generic insert for now, assuming RLS fills tenantId.
-      const { data: result, error } = await supabase
-        .from('TenantPaymentSetting')
-        .upsert([data])
-        .select()
-        .single();
+      // save_payment_settings resolves the tenant from the session and
+      // encrypts secrets with pgcrypto before they hit the table.
+      const { error } = await supabase.rpc('save_payment_settings', {
+        p_provider: data.provider,
+        p_is_active: data.isActive,
+        p_public_key: data.publicKey,
+        p_secret_key: data.secretKey || null,
+        p_webhook_secret: data.webhookSecret || null
+      });
       if (error) throw error;
-      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['paymentSettings'] });
@@ -111,8 +115,8 @@ export default function Settings() {
       provider,
       isActive,
       publicKey,
-      secretKey: secretKey || undefined,
-      webhookSecret: webhookSecret || undefined
+      secretKey,
+      webhookSecret
     });
   };
 

@@ -160,13 +160,19 @@ export function InvoiceModal({ invoice, onClose, autoPrint = false }: { invoice:
                   <span>-{currency(invoice.discount)}</span>
                 </div>
               )}
+              {(invoice.tax || 0) > 0 && (
+                <div className="flex justify-between text-sm text-zinc-400">
+                  <span>Sales Tax{invoice.taxRate ? ` (${invoice.taxRate}%)` : ''}</span>
+                  <span>{currency(invoice.tax)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm text-zinc-400 pb-3 border-b border-zinc-800">
                 <span>Amount Paid</span>
                 <span>{currency(invoice.paid || 0)}</span>
               </div>
               <div className="flex justify-between text-lg font-bold text-zinc-50 pt-1">
                 <span>Total Due</span>
-                <span className="text-brand-500">{currency(Math.max(0, invoice.subtotal - invoice.discount - (invoice.paid || 0)))}</span>
+                <span className="text-brand-500">{currency(Math.max(0, invoice.subtotal - invoice.discount + (invoice.tax || 0) - (invoice.paid || 0)))}</span>
               </div>
             </div>
           </div>

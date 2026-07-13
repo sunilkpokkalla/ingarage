@@ -23,23 +23,18 @@ export default function EstimateApprovalPage() {
     queryKey: ['estimate', jobId],
     queryFn: async () => {
       if (!jobId) return null;
-      const { data, error } = await supabase
-        .from('Job')
-        .select('*, parts:Part(*), timeLogs:TimeLog(*)')
-        .eq('id', jobId)
-        .single();
+      // Anonymous customers can only fetch by exact ID through this RPC —
+      // direct table access is blocked by Row Level Security.
+      const { data, error } = await supabase.rpc('get_estimate', { p_job_id: jobId });
       if (error) throw error;
       return data;
     },
     enabled: !!jobId
   });
 
-  const approveMutation = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase
-        .from('Job')
-        .update({ status: 'Intake' }) // Move to Intake/In Progress
-        .eq('id', jobId);
+  const respondMutation = useMutation({
+    mutationFn: async (approve: boolean) => {
+      const { error } = await supabase.rpc('respond_estimate', { p_job_id: jobId, p_approve: approve });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -60,15 +55,19 @@ export default function EstimateApprovalPage() {
   let dviItems: any[] = [];
   try {
     dviItems = typeof job.damages === 'string' ? JSON.parse(job.damages || '[]') : job.damages || [];
-  } catch (e) {}
+  } catch (e) {
+    // ignore json parse error
+  }
 
-  const isApproved = job.status !== 'Estimate Pending';
+  const isApproved = !!job.approvedAt || (job.status !== 'Estimate Pending' && job.status !== 'Estimate Declined');
+  const isDeclined = job.status === 'Estimate Declined';
+  const isPending = !isApproved && !isDeclined;
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-50 pb-20">
       {/* Header */}
       <div className="bg-zinc-900 border-b border-zinc-800 p-6 text-center shadow-lg sticky top-0 z-10">
-        <h1 className="text-xl font-bold tracking-tight text-zinc-50 mb-1">InGarage Auto Shop</h1>
+        <h1 className="text-xl font-bold tracking-tight text-zinc-50 mb-1">{job.tenantName || 'InGarage'}</h1>
         <p className="text-zinc-400 text-sm">Official Repair Estimate</p>
       </div>
 
@@ -144,33 +143,62 @@ export default function EstimateApprovalPage() {
 
         {/* Action Button */}
         <div className="mt-8">
-          {isApproved ? (
+          {isApproved && (
             <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-6 flex flex-col items-center justify-center text-center gap-3">
               <ShieldCheck className="text-emerald-500" size={48} />
               <div>
                 <h3 className="text-xl font-bold text-emerald-400">Work Authorized</h3>
-                <p className="text-emerald-500/80 mt-1 text-sm">Thank you! We will begin repairs on your vehicle immediately.</p>
+                <p className="text-emerald-500/80 mt-1 text-sm">
+                  Thank you! We will begin repairs on your vehicle immediately.
+                  {job.approvedAt && <span className="block mt-1">Approved on {new Date(job.approvedAt).toLocaleString()}</span>}
+                </p>
               </div>
             </div>
-          ) : (
-            <button 
-              onClick={() => approveMutation.mutate()}
-              disabled={approveMutation.isPending}
-              className="w-full bg-brand-500 hover:bg-brand-600 text-zinc-50 rounded-2xl p-4 font-bold text-lg shadow-xl shadow-brand-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {approveMutation.isPending ? 'Authorizing...' : (
-                <>
-                  <CheckCircle size={22} />
-                  Approve & Authorize Work
-                </>
-              )}
-            </button>
           )}
-          
-          {!isApproved && (
-            <p className="text-xs text-center text-zinc-500 mt-4 px-4">
-              By clicking Approve, you authorize InGarage Auto Shop to perform the repairs listed above.
-            </p>
+
+          {isDeclined && (
+            <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-6 flex flex-col items-center justify-center text-center gap-3">
+              <XCircle className="text-rose-500" size={48} />
+              <div>
+                <h3 className="text-xl font-bold text-rose-400">Estimate Declined</h3>
+                <p className="text-rose-500/80 mt-1 text-sm">
+                  You declined this estimate{job.declinedAt ? ` on ${new Date(job.declinedAt).toLocaleString()}` : ''}.
+                  If you change your mind, please contact the shop.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {isPending && (
+            <>
+              <button
+                onClick={() => respondMutation.mutate(true)}
+                disabled={respondMutation.isPending}
+                className="w-full bg-brand-500 hover:bg-brand-600 text-zinc-50 rounded-2xl p-4 font-bold text-lg shadow-xl shadow-brand-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {respondMutation.isPending ? 'Submitting...' : (
+                  <>
+                    <CheckCircle size={22} />
+                    Approve & Authorize Work
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  if (window.confirm('Decline this estimate? The shop will be notified.')) {
+                    respondMutation.mutate(false);
+                  }
+                }}
+                disabled={respondMutation.isPending}
+                className="w-full mt-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-rose-400 rounded-2xl p-3 font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <XCircle size={18} />
+                Decline Estimate
+              </button>
+              <p className="text-xs text-center text-zinc-500 mt-4 px-4">
+                By clicking Approve, you authorize {job.tenantName || 'the shop'} to perform the repairs listed above.
+              </p>
+            </>
           )}
         </div>
 

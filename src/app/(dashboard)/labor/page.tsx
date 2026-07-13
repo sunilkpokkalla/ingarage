@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/utils/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { getActiveTenantId } from '@/utils/tenant';
 import {
   Timer,
   Play,
@@ -93,7 +94,7 @@ export default function Labor() {
     try {
       const userRecord = await getUserRecord();
       const now = new Date().toISOString();
-      const activeTenantId = user?.tenantId || 'cmr4vjp1q0000aluvn85iirke';
+      const activeTenantId = getActiveTenantId(user);
       const { error } = await supabase.from('TimeLog').insert([{
         id: crypto.randomUUID(),
         tenantId: activeTenantId,
