@@ -1,8 +1,8 @@
 "use client";
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/utils/supabase/client';
-import { Wrench, Search, Plus, Clock, CheckCircle2, AlertCircle, ClipboardCheck, Share, Pencil } from 'lucide-react';
+import { Wrench, Search, Plus, Clock, CheckCircle2, AlertCircle, ClipboardCheck, Share, Pencil, Mail } from 'lucide-react';
 import NewJobModal from '@/components/NewJobModal';
 import DVIModal from '@/components/DVIModal';
 import EditJobModal from '@/components/EditJobModal';
@@ -13,6 +13,7 @@ export default function Jobs() {
   const [editingJob, setEditingJob] = useState<any>(null);
   const supabase = createClient();
 
+  const queryClient = useQueryClient();
   const { data: jobs = [], isLoading } = useQuery({
     queryKey: ['jobs'],
     queryFn: async () => {
@@ -37,6 +38,47 @@ export default function Jobs() {
     navigator.clipboard.writeText(url);
     alert('Estimate link copied to clipboard! You can now paste this in a text or email to the customer.');
   };
+
+  const emailMutation = useMutation({
+    mutationFn: async (job: any) => {
+      const email = job.email || prompt('Enter customer email to send estimate:');
+      if (!email) throw new Error('Email is required');
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch('/api/notify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token || ''}`
+        },
+        body: JSON.stringify({
+          type: 'estimate',
+          id: job.id,
+          customerEmail: email,
+          customerName: job.customer,
+          vehicle: job.vehicle
+        })
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || 'Failed to send email');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      alert('Email sent successfully!');
+    },
+    onError: (err: any) => {
+      alert(err.message || 'Failed to send email');
+    }
+  });
+
+  const handleEmailEstimate = (job: any) => {
+    emailMutation.mutate(job);
+  };
+
 
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-6 relative">
@@ -107,13 +149,23 @@ export default function Jobs() {
                   </div>
                   <div className="flex items-center gap-3">
                     {job.status === 'Estimate Pending' && (
-                      <button 
-                        onClick={() => handleShareEstimate(job.id)}
-                        className="text-purple-400 hover:text-purple-300 transition-colors flex items-center gap-1 text-sm font-medium mr-2 bg-purple-500/10 px-2 py-1 rounded"
-                        title="Copy Estimate Link"
-                      >
-                        <Share size={14} /> Share
-                      </button>
+                      <>
+                        <button 
+                          onClick={() => handleShareEstimate(job.id)}
+                          className="text-purple-400 hover:text-purple-300 transition-colors flex items-center gap-1 text-sm font-medium mr-2 bg-purple-500/10 px-2 py-1 rounded"
+                          title="Copy Estimate Link"
+                        >
+                          <Share size={14} /> Share
+                        </button>
+                        <button 
+                          onClick={() => handleEmailEstimate(job)}
+                          disabled={emailMutation.isPending && emailMutation.variables?.id === job.id}
+                          className="text-purple-400 hover:text-purple-300 transition-colors flex items-center gap-1 text-sm font-medium mr-2 bg-purple-500/10 px-2 py-1 rounded disabled:opacity-50"
+                          title="Email Estimate"
+                        >
+                          <Mail size={14} /> Email
+                        </button>
+                      </>
                     )}
                     <button
                       onClick={() => setInspectingJob(job)}

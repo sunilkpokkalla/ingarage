@@ -78,9 +78,7 @@ export default function Settings() {
     if (settings) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsActive(settings.isActive);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setProvider(settings.provider || 'STRIPE');
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPublicKey(settings.publicKey || '');
     }
   }, [settings]);
@@ -324,6 +322,46 @@ export default function Settings() {
                 </span>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* Platform Subscription Section */}
+        <section className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 relative overflow-hidden">
+          <div className="flex items-center gap-4 mb-8">
+            <div className="w-12 h-12 rounded-xl bg-zinc-950 flex items-center justify-center text-brand-400 border border-zinc-800">
+              <ShieldCheck size={24} weight="duotone" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-zinc-50 font-['Outfit']">Platform Subscription</h2>
+              <p className="text-zinc-400 text-sm">Manage your InGarage SaaS subscription ($99/mo).</p>
+            </div>
+          </div>
+
+          <div className="bg-zinc-950/50 border border-zinc-800 rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div>
+              <h3 className="text-lg font-bold text-zinc-100">Professional Plan</h3>
+              <p className="text-sm text-zinc-400 mt-1">Unlimited estimates, invoices, and team members.</p>
+            </div>
+            
+            <button 
+              onClick={async () => {
+                try {
+                  const { data: { session } } = await supabase.auth.getSession();
+                  const res = await fetch('/api/billing/checkout', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${session?.access_token || ''}` }
+                  });
+                  if (!res.ok) throw new Error(await res.text());
+                  const { url } = await res.json();
+                  window.location.href = url;
+                } catch (e: any) {
+                  alert(e.message || 'Failed to start checkout');
+                }
+              }}
+              className="px-6 py-3 bg-brand-500 hover:bg-brand-400 text-zinc-950 rounded-xl font-bold transition-all whitespace-nowrap"
+            >
+              Subscribe / Manage
+            </button>
           </div>
         </section>
 

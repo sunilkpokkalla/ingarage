@@ -100,6 +100,15 @@ export default function EstimateApprovalPage() {
                   <div>
                     <p className="font-semibold text-zinc-200">{item.name}</p>
                     {item.notes && <p className="text-sm text-zinc-400 mt-1">{item.notes}</p>}
+                    {item.images && item.images.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {item.images.map((url: string, imgIdx: number) => (
+                          <a key={imgIdx} href={url} target="_blank" rel="noreferrer" className="block w-20 h-20 rounded-md overflow-hidden border border-zinc-700/50 hover:border-brand-500 transition-colors">
+                            <img src={url} alt="DVI photo" className="w-full h-full object-cover" />
+                          </a>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

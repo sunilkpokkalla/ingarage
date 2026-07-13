@@ -14,7 +14,8 @@ import {
   Download,
   CreditCard,
   Share2,
-  X
+  X,
+  Mail
 } from 'lucide-react';
 
 function currency(value: number) {
@@ -153,6 +154,50 @@ export default function Invoices() {
     alert('Invoice link copied to clipboard! Send it to the customer to view and reference their bill.');
   };
 
+  const emailMutation = useMutation({
+    mutationFn: async (inv: any) => {
+      const email = inv.job?.email || prompt('Enter customer email to send invoice:');
+      if (!email) throw new Error('Email is required');
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch('/api/notify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token || ''}`
+        },
+        body: JSON.stringify({
+          type: 'invoice',
+          id: inv.id,
+          customerEmail: email,
+          customerName: inv.job?.customer,
+          vehicle: inv.job?.vehicle
+        })
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || 'Failed to send email');
+      }
+
+      if (inv.status === 'Draft') {
+        await supabase.from('Invoice').update({ status: 'Sent' }).eq('id', inv.id);
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      alert('Email sent successfully!');
+    },
+    onError: (err: any) => {
+      alert(err.message || 'Failed to send email');
+    }
+  });
+
+  const handleEmail = (inv: any) => {
+    emailMutation.mutate(inv);
+  };
+
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredInvoices = invoices.filter((i: any) => 
@@ -260,6 +305,14 @@ export default function Invoices() {
                     className="flex items-center justify-center bg-zinc-900/50 hover:bg-zinc-800 text-zinc-50 px-3 py-2 rounded-lg transition-colors"
                   >
                     <Share2 size={16} />
+                  </button>
+                  <button
+                    onClick={() => handleEmail(inv)}
+                    title="Email Invoice"
+                    disabled={emailMutation.isPending && emailMutation.variables?.id === inv.id}
+                    className="flex items-center justify-center bg-zinc-900/50 hover:bg-zinc-800 text-zinc-50 px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    <Mail size={16} />
                   </button>
                   {inv.status !== 'Paid' && (
                     <button

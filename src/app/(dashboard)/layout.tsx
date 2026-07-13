@@ -12,8 +12,11 @@ import {
   Gear, 
   SignOut,
   Package,
-  CarProfile
+  CarProfile,
+  WarningCircle
 } from '@phosphor-icons/react';
+import { useQuery } from '@tanstack/react-query';
+import { createClient } from '@/utils/supabase/client';
 
 const navItems = [
   { icon: <SquaresFour size={20} weight="duotone" />, label: 'Command Center', path: '/dashboard' },
@@ -35,6 +38,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     localStorage.removeItem('token');
     router.push('/login');
   };
+
+  const supabase = createClient();
+  const { data: subscription, isLoading } = useQuery({
+    queryKey: ['platformSubscription'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('PlatformSubscription').select('*').single();
+      if (error && error.code !== 'PGRST116') throw error; // ignore no rows
+      return data || null;
+    }
+  });
+
+  const isBillingIssue = !isLoading && subscription && subscription.status !== 'ACTIVE' && subscription.status !== 'TRIAL';
+  const isSettings = pathname?.startsWith('/settings');
 
   return (
     <div className="flex h-[100dvh] w-full dashboard-theme font-sans selection:bg-brand-500/30 selection:text-white">
@@ -83,6 +99,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Ambient Glows */}
         <div className="absolute top-0 left-1/4 w-[50vw] h-[50vw] bg-brand-500/5 blur-[120px] rounded-full pointer-events-none" />
         
+        {isBillingIssue && !isSettings ? (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-zinc-950/80 backdrop-blur-md">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-10 max-w-md w-full text-center shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-brand-500/10 blur-[60px] pointer-events-none" />
+              <div className="mx-auto w-16 h-16 bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center rounded-2xl mb-6">
+                <WarningCircle size={32} weight="duotone" />
+              </div>
+              <h2 className="text-2xl font-bold text-zinc-50 mb-3 font-['Outfit']">Action Required</h2>
+              <p className="text-zinc-400 mb-8">
+                Your platform subscription is past due or inactive. Please update your billing information to continue using InGarage.
+              </p>
+              <Link 
+                href="/settings"
+                className="inline-flex justify-center items-center px-6 py-3 bg-brand-500 text-zinc-950 hover:bg-brand-400 rounded-xl font-bold transition-all w-full"
+              >
+                Go to Billing
+              </Link>
+            </div>
+          </div>
+        ) : null}
+
         {children}
       </main>
     </div>

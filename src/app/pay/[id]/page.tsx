@@ -11,7 +11,7 @@ import {
 } from '@stripe/react-stripe-js';
 import { Receipt, CarFront, AlertCircle, CheckCircle2 } from 'lucide-react';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+import { createClient } from '@/utils/supabase/client';
 
 // The actual payment form component
 function CheckoutForm({ onSuccess }: { clientSecret: string, onSuccess: () => void }) {
@@ -66,18 +66,26 @@ function CheckoutForm({ onSuccess }: { clientSecret: string, onSuccess: () => vo
 
 export default function PublicInvoice() {
   const { id } = useParams();
+  const invoiceId = typeof id === 'string' ? id : '';
   const [stripePromise, setStripePromise] = useState<any>(null);
   const [clientSecret, setClientSecret] = useState('');
   const [paymentError, setPaymentError] = useState('');
+  const supabase = createClient();
 
   const { data: invoice, isLoading, refetch } = useQuery({
-    queryKey: ['publicInvoice', id],
-    queryFn: () => fetch(`${API_URL}/public/invoices/${id}`).then(res => res.json())
+    queryKey: ['publicInvoice', invoiceId],
+    queryFn: async () => {
+      if (!invoiceId) return null;
+      const { data, error } = await supabase.rpc('get_public_invoice', { p_invoice_id: invoiceId });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!invoiceId
   });
 
   const handleInitializePayment = async () => {
     try {
-      const res = await fetch(`${API_URL}/public/invoices/${id}/pay`, { method: 'POST' });
+      const res = await fetch(`/api/public/invoices/${invoiceId}/pay`, { method: 'POST' });
       const data = await res.json();
       
       if (!res.ok) throw new Error(data.error);
