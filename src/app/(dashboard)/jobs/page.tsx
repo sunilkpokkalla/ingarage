@@ -2,11 +2,13 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { createClient } from '@/utils/supabase/client';
-import { Wrench, Search, Plus, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Wrench, Search, Plus, Clock, CheckCircle2, AlertCircle, ClipboardCheck, Share } from 'lucide-react';
 import NewJobModal from '@/components/NewJobModal';
+import DVIModal from '@/components/DVIModal';
 
 export default function Jobs() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [inspectingJob, setInspectingJob] = useState<any>(null);
   const supabase = createClient();
 
   const { data: jobs = [], isLoading } = useQuery({
@@ -28,7 +30,11 @@ export default function Jobs() {
     (j.vin && j.vin.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-
+  const handleShareEstimate = (jobId: string) => {
+    const url = `${window.location.origin}/estimate/${jobId}`;
+    navigator.clipboard.writeText(url);
+    alert('Estimate link copied to clipboard! You can now paste this in a text or email to the customer.');
+  };
 
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-6 relative">
@@ -74,6 +80,7 @@ export default function Jobs() {
                 </div>
                 <span className={`px-2 py-1 rounded text-xs font-semibold ${
                   job.status === 'Ready' ? 'bg-emerald-500/10 text-emerald-400' :
+                  job.status === 'Estimate Pending' ? 'bg-purple-500/10 text-purple-400' :
                   job.status === 'Intake' ? 'bg-brand-500/10 text-brand-400' :
                   'bg-amber-500/10 text-amber-400'
                 }`}>
@@ -94,7 +101,23 @@ export default function Jobs() {
                   <div className="flex items-center gap-2 text-zinc-400 text-sm">
                     <Clock size={16} /> {job.laborHours}h logged
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
+                    {job.status === 'Estimate Pending' && (
+                      <button 
+                        onClick={() => handleShareEstimate(job.id)}
+                        className="text-purple-400 hover:text-purple-300 transition-colors flex items-center gap-1 text-sm font-medium mr-2 bg-purple-500/10 px-2 py-1 rounded"
+                        title="Copy Estimate Link"
+                      >
+                        <Share size={14} /> Share
+                      </button>
+                    )}
+                    <button 
+                      onClick={() => setInspectingJob(job)}
+                      className="text-zinc-400 hover:text-brand-500 transition-colors flex items-center gap-1 text-sm font-medium"
+                      title="Digital Vehicle Inspection"
+                    >
+                      <ClipboardCheck size={18} /> Inspect
+                    </button>
                     {job.stage === 100 ? (
                       <CheckCircle2 size={18} className="text-emerald-500" />
                     ) : (
@@ -109,6 +132,7 @@ export default function Jobs() {
       )}
 
       <NewJobModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <DVIModal job={inspectingJob} isOpen={!!inspectingJob} onClose={() => setInspectingJob(null)} />
     </div>
   );
 }

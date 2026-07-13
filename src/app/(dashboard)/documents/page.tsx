@@ -2,6 +2,7 @@
 import { useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/utils/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   FileCheck2,
   Search,
@@ -39,6 +40,7 @@ export default function Documents() {
   const [selectedJobId, setSelectedJobId] = useState('');
   const [uploadError, setUploadError] = useState('');
   const supabase = createClient();
+  const { user } = useAuth();
 
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ['documents'],
@@ -68,7 +70,11 @@ export default function Documents() {
         .join('');
       const dataHex = `\\x${hexString}`;
 
+      const activeTenantId = user?.tenantId || 'cmr4vjp1q0000aluvn85iirke';
       const { data, error } = await supabase.from('Document').insert([{
+        id: crypto.randomUUID(),
+        tenantId: activeTenantId,
+        createdAt: new Date().toISOString(),
         name: file.name,
         mimeType: file.type || 'application/octet-stream',
         size: file.size,

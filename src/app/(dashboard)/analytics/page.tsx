@@ -62,23 +62,43 @@ export default function Analytics() {
   const outstandingInvoices = invoices.filter((i: any) => i.status !== 'Paid');
   const outstandingRevenue = outstandingInvoices.reduce((sum: number, inv: any) => sum + (inv.subtotal - inv.discount), 0);
 
-  // Generate some realistic-looking data if there's no data yet to keep the UI looking premium
-  const revenueData = invoices.length > 5 ? [] : [
-    { name: 'Jan', revenue: 14000 },
-    { name: 'Feb', revenue: 22000 },
-    { name: 'Mar', revenue: 19000 },
-    { name: 'Apr', revenue: 31000 },
-    { name: 'May', revenue: 28000 },
-    { name: 'Jun', revenue: 42000 },
-  ];
+  // Real monthly revenue from paid invoices, trailing 6 months
+  const now = new Date();
+  const revenueData = Array.from({ length: 6 }, (_, i) => {
+    const month = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+    const revenue = paidInvoices
+      .filter((inv: any) => {
+        const d = new Date(inv.updatedAt || inv.createdAt);
+        return d.getFullYear() === month.getFullYear() && d.getMonth() === month.getMonth();
+      })
+      .reduce((sum: number, inv: any) => sum + ((inv.subtotal || 0) - (inv.discount || 0)), 0);
+    return { name: month.toLocaleString('en-US', { month: 'short' }), revenue };
+  });
 
-  const cycleTimeData = [
-    { name: 'State Farm', days: 4.2 },
-    { name: 'Geico', days: 5.1 },
-    { name: 'Progressive', days: 3.8 },
-    { name: 'Allstate', days: 6.0 },
-    { name: 'Customer Pay', days: 2.1 },
-  ];
+  // Real average cycle time (createdAt -> updatedAt) per insurer for finished jobs
+  const finishedJobs = jobs.filter((j: any) => j.status === 'Ready' || j.status === 'Completed' || j.stage === 100);
+  const cycleByInsurer = new Map<string, { totalDays: number, count: number }>();
+  finishedJobs.forEach((j: any) => {
+    const insurer = j.insurer || 'Customer Pay';
+    const days = (new Date(j.updatedAt).getTime() - new Date(j.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+    const entry = cycleByInsurer.get(insurer) || { totalDays: 0, count: 0 };
+    entry.totalDays += days;
+    entry.count += 1;
+    cycleByInsurer.set(insurer, entry);
+  });
+  const cycleTimeData = Array.from(cycleByInsurer.entries()).map(([name, { totalDays, count }]) => ({
+    name,
+    days: Math.round((totalDays / count) * 10) / 10
+  }));
+
+  // Week-over-week change in new jobs, for the WIP trend badge
+  const weekMs = 7 * 24 * 60 * 60 * 1000;
+  const jobsThisWeek = jobs.filter((j: any) => now.getTime() - new Date(j.createdAt).getTime() < weekMs).length;
+  const jobsLastWeek = jobs.filter((j: any) => {
+    const age = now.getTime() - new Date(j.createdAt).getTime();
+    return age >= weekMs && age < 2 * weekMs;
+  }).length;
+  const wipTrend = jobsLastWeek > 0 ? Math.round(((jobsThisWeek - jobsLastWeek) / jobsLastWeek) * 100) : null;
 
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -99,9 +119,11 @@ export default function Analytics() {
             <div className="w-10 h-10 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center">
               <CarFront size={20} />
             </div>
-            <span className="flex items-center gap-1 text-emerald-400 text-sm font-medium">
-              <TrendingUp size={14} /> +12%
-            </span>
+            {wipTrend !== null && (
+              <span className={`flex items-center gap-1 text-sm font-medium ${wipTrend >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                <TrendingUp size={14} className={wipTrend < 0 ? 'rotate-180' : ''} /> {wipTrend >= 0 ? '+' : ''}{wipTrend}%
+              </span>
+            )}
           </div>
           <p className="text-zinc-400 text-sm font-medium mb-1">Active WIP Jobs</p>
           <h3 className="text-3xl font-bold text-zinc-50">{activeJobsCount}</h3>
@@ -176,6 +198,11 @@ export default function Analytics() {
             <p className="text-zinc-500 text-sm">Average days from drop-off to completion</p>
           </div>
           <div className="flex-1 w-full">
+            {cycleTimeData.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-zinc-600 text-sm">
+                No completed jobs yet — cycle times will appear once jobs are finished.
+              </div>
+            ) : (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={cycleTimeData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" horizontal={false} />
@@ -190,6 +217,7 @@ export default function Analytics() {
                 <Bar dataKey="days" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={24} />
               </BarChart>
             </ResponsiveContainer>
+            )}
           </div>
         </div>
       </div>

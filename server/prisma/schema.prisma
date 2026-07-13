@@ -112,6 +112,14 @@ model Job {
   photos      String   @default("[]") // JSON string array
   damages     String   @default("[]") // JSON string array
 
+  phone       String?
+  email       String?
+  year        String?
+  make        String?
+  model       String?
+  drivetrain  String?
+  license_plate String?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

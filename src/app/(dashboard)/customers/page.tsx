@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/utils/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   MessageSquareText,
   Search,
@@ -23,6 +24,7 @@ const emptyForm: CustomerForm = { name: '', email: '', phone: '' };
 export default function Customers() {
   const queryClient = useQueryClient();
   const supabase = createClient();
+  const { user } = useAuth();
 
   const { data: customers = [], isLoading } = useQuery({
     queryKey: ['customers'],
@@ -49,7 +51,13 @@ export default function Customers() {
 
   const createMutation = useMutation({
     mutationFn: async (data: CustomerForm) => {
+      const now = new Date().toISOString();
+      const activeTenantId = user?.tenantId || 'cmr4vjp1q0000aluvn85iirke';
       const { data: result, error } = await supabase.from('Customer').insert([{
+        id: crypto.randomUUID(),
+        tenantId: activeTenantId,
+        createdAt: now,
+        updatedAt: now,
         name: data.name,
         email: data.email || null,
         phone: data.phone || null

@@ -2,6 +2,9 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/utils/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { InvoiceModal } from '@/components/InvoiceModal';
+import { calculateSellingPrice } from '@/utils/pricing';
 import {
   ReceiptText,
   Search,
@@ -22,7 +25,10 @@ function currency(value: number) {
 export default function Invoices() {
   const queryClient = useQueryClient();
   const supabase = createClient();
+  const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [printOnOpen, setPrintOnOpen] = useState(false);
   const [formData, setFormData] = useState({
     jobId: '',
     discount: 0
@@ -31,7 +37,7 @@ export default function Invoices() {
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: ['invoices'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('Invoice').select('*, job:Job(*)');
+      const { data, error } = await supabase.from('Invoice').select('*, job:Job(*, parts:Part(*), timeLogs:TimeLog(*))');
       if (error) throw error;
       return data;
     }
@@ -57,12 +63,20 @@ export default function Invoices() {
         
       let subtotal = 0;
       if (job) {
-        const partsTotal = (job.parts || []).reduce((sum: number, p: any) => sum + (p.cost || 0), 0);
+        // Parts are billed at the marked-up selling price, matching the estimate and invoice document
+        const partsTotal = (job.parts || []).reduce((sum: number, p: any) => sum + calculateSellingPrice(p.cost || 0), 0);
         const laborTotal = (job.laborHours || 0) * (job.laborRate || 0);
         subtotal = partsTotal + laborTotal;
       }
 
+      const now = new Date().toISOString();
+      const activeTenantId = user?.tenantId || 'cmr4vjp1q0000aluvn85iirke';
+
       const { data, error } = await supabase.from('Invoice').insert([{
+        id: crypto.randomUUID(),
+        tenantId: activeTenantId,
+        createdAt: now,
+        updatedAt: now,
         jobId: newInvoice.jobId,
         discount: newInvoice.discount,
         subtotal,
@@ -78,9 +92,38 @@ export default function Invoices() {
       setFormData({ jobId: '', discount: 0 });
     },
     onError: (err: any) => {
-      alert(err.message || 'Failed to draft invoice');
+      console.error("Database Insert Error:", err);
     }
   });
+
+  const collectMutation = useMutation({
+    mutationFn: async (inv: any) => {
+      const amountDue = Math.max(0, (inv.subtotal || 0) - (inv.discount || 0));
+      const { error } = await supabase
+        .from('Invoice')
+        .update({
+          status: 'Paid',
+          paid: amountDue,
+          updatedAt: new Date().toISOString()
+        })
+        .eq('id', inv.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
+    },
+    onError: (err: any) => {
+      alert('Failed to record payment: ' + (err.message || 'Unknown error'));
+    }
+  });
+
+  const handleCollect = (inv: any) => {
+    const amountDue = Math.max(0, (inv.subtotal || 0) - (inv.discount || 0));
+    if (window.confirm(`Record ${currency(amountDue)} as paid for invoice #${inv.id.slice(-6).toUpperCase()}?`)) {
+      collectMutation.mutate(inv);
+    }
+  };
 
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -169,15 +212,26 @@ export default function Invoices() {
                 </div>
 
                 <div className="border-t border-zinc-800 pt-4 flex gap-2">
-                  <button className="flex-1 flex items-center justify-center gap-2 bg-zinc-900/50 hover:bg-zinc-900/50 text-zinc-50 px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                  <button
+                    onClick={() => { setPrintOnOpen(false); setSelectedInvoice(inv); }}
+                    className="flex-1 flex items-center justify-center gap-2 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-50 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                  >
                     <FileText size={16} /> View
                   </button>
-                  <button className="flex items-center justify-center bg-zinc-900/50 hover:bg-zinc-900/50 text-zinc-50 px-3 py-2 rounded-lg transition-colors">
+                  <button
+                    onClick={() => { setPrintOnOpen(true); setSelectedInvoice(inv); }}
+                    title="Download as PDF"
+                    className="flex items-center justify-center bg-zinc-900/50 hover:bg-zinc-800 text-zinc-50 px-3 py-2 rounded-lg transition-colors"
+                  >
                     <Download size={16} />
                   </button>
                   {inv.status !== 'Paid' && (
-                    <button className="flex-1 flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 text-zinc-50 px-3 py-2 rounded-lg text-sm font-medium transition-colors">
-                      <CreditCard size={16} /> Collect
+                    <button
+                      onClick={() => handleCollect(inv)}
+                      disabled={collectMutation.isPending}
+                      className="flex-1 flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 text-zinc-50 px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                    >
+                      <CreditCard size={16} /> {collectMutation.isPending ? 'Saving...' : 'Collect'}
                     </button>
                   )}
                 </div>
@@ -196,7 +250,13 @@ export default function Invoices() {
                 <X size={20} />
               </button>
             </div>
-            
+
+            {mutation.isError && (
+              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-sm">
+                {(mutation.error as any)?.message || 'Failed to draft invoice.'}
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-zinc-400 mb-1">Select Completed Job</label>
@@ -246,6 +306,14 @@ export default function Invoices() {
             </form>
           </div>
         </div>
+      )}
+
+      {selectedInvoice && (
+        <InvoiceModal
+          invoice={selectedInvoice}
+          autoPrint={printOnOpen}
+          onClose={() => { setSelectedInvoice(null); setPrintOnOpen(false); }}
+        />
       )}
     </div>
   );

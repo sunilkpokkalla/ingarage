@@ -64,10 +64,50 @@ export default function Dashboard() {
 
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showNotifications, setShowNotifications] = useState(false);
 
-  const activeJob = selectedJobId 
-    ? jobs.find((j: any) => j.id === selectedJobId) 
-    : jobs[0];
+  const { data: transitParts = [] } = useQuery({
+    queryKey: ['transitParts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('Part')
+        .select('id, name, eta, job:Job(vehicle)')
+        .in('status', ['Ordered', 'InTransit']);
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const filteredJobs = jobs.filter((j: any) =>
+    (j.vehicle || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (j.customer || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (j.vin || '').toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const activeJob = selectedJobId
+    ? jobs.find((j: any) => j.id === selectedJobId)
+    : filteredJobs[0];
+
+  const pendingEstimates = jobs.filter((j: any) => j.status === 'Estimate Pending');
+  const notificationCount = pendingEstimates.length + transitParts.length;
+
+  // Damages can be legacy plain strings or DVI inspection objects { name, status, notes }
+  let damageItems: { label: string, status?: string, notes?: string }[] = [];
+  if (activeJob?.damages) {
+    try {
+      const parsed = typeof activeJob.damages === 'string' ? JSON.parse(activeJob.damages) : activeJob.damages;
+      if (Array.isArray(parsed)) {
+        damageItems = parsed
+          .map((d: any) => typeof d === 'string'
+            ? { label: d }
+            : { label: d?.name || '', status: d?.status, notes: d?.notes })
+          .filter((d) => d.label && d.status !== 'UNCHECKED');
+      }
+    } catch {
+      damageItems = [];
+    }
+  }
 
   return (
     <div className="flex-1 overflow-y-auto px-8 py-10 space-y-12">
@@ -79,15 +119,57 @@ export default function Dashboard() {
         <div className="flex items-center gap-6">
           <div className="relative group">
             <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-brand-500 transition-colors" size={18} />
-            <input 
-              type="text" 
-              placeholder="Search VIN or customer..." 
+            <input
+              type="text"
+              placeholder="Search VIN or customer..."
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setSelectedJobId(null); }}
               className="bg-zinc-900/50 border border-zinc-800 text-zinc-100 pl-10 pr-4 py-2.5 rounded-xl focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 transition-all text-sm w-64"
             />
           </div>
-          <button className="p-2.5 text-zinc-400 hover:text-zinc-50 transition-colors bg-zinc-900 border border-zinc-800 rounded-xl hover:border-zinc-700">
-            <Bell size={18} />
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="p-2.5 text-zinc-400 hover:text-zinc-50 transition-colors bg-zinc-900 border border-zinc-800 rounded-xl hover:border-zinc-700 relative"
+            >
+              <Bell size={18} />
+              {notificationCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-brand-500 text-zinc-950 rounded-full text-[10px] font-bold flex items-center justify-center">
+                  {notificationCount}
+                </span>
+              )}
+            </button>
+            {showNotifications && (
+              <div className="absolute right-0 top-full mt-2 w-80 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl z-50 overflow-hidden">
+                <div className="px-4 py-3 border-b border-zinc-800 text-xs font-bold uppercase tracking-widest text-zinc-500 font-mono">
+                  Notifications
+                </div>
+                <div className="max-h-80 overflow-y-auto divide-y divide-zinc-800/50">
+                  {notificationCount === 0 && (
+                    <div className="px-4 py-6 text-center text-zinc-500 text-sm">All caught up. Nothing needs attention.</div>
+                  )}
+                  {pendingEstimates.map((j: any) => (
+                    <button
+                      key={j.id}
+                      onClick={() => { setSelectedJobId(j.id); setShowNotifications(false); }}
+                      className="w-full text-left px-4 py-3 hover:bg-zinc-800/50 transition-colors"
+                    >
+                      <p className="text-sm text-zinc-200 font-medium">Estimate awaiting approval</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">{j.vehicle} · {j.customer}</p>
+                    </button>
+                  ))}
+                  {transitParts.map((p: any) => (
+                    <div key={p.id} className="px-4 py-3">
+                      <p className="text-sm text-zinc-200 font-medium">Part on the way: {p.name}</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">
+                        {p.job?.vehicle || 'Unassigned'}{p.eta ? ` · ETA ${new Date(p.eta).toLocaleDateString()}` : ''}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           <button 
             onClick={() => setIsModalOpen(true)}
             className="flex items-center gap-2 bg-brand-500 hover:bg-brand-400 text-zinc-950 px-5 py-2.5 rounded-xl font-bold transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_25px_rgba(16,185,129,0.4)]"
@@ -120,12 +202,12 @@ export default function Dashboard() {
           <div className="flex flex-col border-t border-zinc-800/50">
             {isLoading ? (
               <div className="py-8 text-zinc-500 text-center text-sm font-mono">Loading jobs...</div>
-            ) : jobs.length === 0 ? (
+            ) : filteredJobs.length === 0 ? (
               <div className="py-12 text-zinc-500 text-center text-sm font-mono">
-                Queue empty.
+                {searchTerm ? 'No jobs match your search.' : 'Queue empty.'}
               </div>
             ) : (
-              jobs.map((job: any) => (
+              filteredJobs.map((job: any) => (
                 <button
                   key={job.id}
                   onClick={() => setSelectedJobId(job.id)}
@@ -177,9 +259,19 @@ export default function Dashboard() {
                     <Check size={16} className="text-brand-500" /> Damage Assessment
                   </h3>
                   <div className="flex flex-wrap gap-3">
-                    {activeJob.damages ? JSON.parse(activeJob.damages).map((d: string) => (
-                      <div key={d} className="bg-zinc-900 border border-zinc-800 px-4 py-2.5 rounded-xl text-sm text-zinc-300 shadow-sm">
-                        {d}
+                    {damageItems.length > 0 ? damageItems.map((d, i) => (
+                      <div
+                        key={`${d.label}-${i}`}
+                        title={d.notes || undefined}
+                        className={`px-4 py-2.5 rounded-xl text-sm shadow-sm border ${
+                          d.status === 'RED' ? 'bg-rose-500/10 border-rose-500/20 text-rose-300' :
+                          d.status === 'YELLOW' ? 'bg-amber-500/10 border-amber-500/20 text-amber-300' :
+                          d.status === 'GREEN' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300' :
+                          'bg-zinc-900 border-zinc-800 text-zinc-300'
+                        }`}
+                      >
+                        {d.label}
+                        {d.notes && <span className="block text-xs opacity-70 mt-0.5">{d.notes}</span>}
                       </div>
                     )) : (
                       <span className="text-zinc-600 text-sm italic">No damages recorded</span>

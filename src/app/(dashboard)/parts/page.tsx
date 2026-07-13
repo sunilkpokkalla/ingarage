@@ -2,19 +2,14 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/utils/supabase/client';
-import {
-  PackageSearch,
-  Search,
-  Plus,
-  Truck,
-  CheckCircle,
-  PackageCheck,
-  X
-} from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Package, Search, Plus, Wrench, Truck, CheckCircle, PackageCheck, X } from 'lucide-react';
+import { calculateSellingPrice, calculateProfitMargin } from '@/utils/pricing';
 
 export default function Parts() {
   const queryClient = useQueryClient();
   const supabase = createClient();
+  const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     jobId: '',
@@ -45,7 +40,14 @@ export default function Parts() {
 
   const mutation = useMutation({
     mutationFn: async (newPart: any) => {
+      const now = new Date().toISOString();
+      const activeTenantId = user?.tenantId || 'cmr4vjp1q0000aluvn85iirke';
+
       const { data, error } = await supabase.from('Part').insert([{
+        id: crypto.randomUUID(),
+        tenantId: activeTenantId,
+        createdAt: now,
+        updatedAt: now,
         jobId: newPart.jobId,
         name: newPart.name,
         number: newPart.number || null,
@@ -61,6 +63,9 @@ export default function Parts() {
       queryClient.invalidateQueries({ queryKey: ['parts'] });
       setIsModalOpen(false);
       setFormData({ jobId: '', name: '', number: '', supplier: '', cost: '', eta: '' });
+    },
+    onError: (error: any) => {
+      console.error("Database Insert Error:", error);
     }
   });
 
@@ -82,7 +87,7 @@ export default function Parts() {
         <div>
           <p className="text-brand-500 text-sm font-semibold uppercase tracking-wider mb-1">Procurement</p>
           <h1 className="text-2xl font-bold text-zinc-50 flex items-center gap-2">
-            <PackageSearch size={24} className="text-zinc-400" />
+            <Package size={24} className="text-zinc-400" />
             Parts Management
           </h1>
         </div>
@@ -115,16 +120,18 @@ export default function Parts() {
             <thead className="bg-zinc-900/50/50 text-zinc-400 uppercase text-xs border-b border-zinc-800">
               <tr>
                 <th className="px-6 py-4 font-medium">Part Details</th>
-                <th className="px-6 py-4 font-medium">Job / Vehicle</th>
-                <th className="px-6 py-4 font-medium">Supplier</th>
-                <th className="px-6 py-4 font-medium">ETA</th>
-                <th className="px-6 py-4 font-medium">Status</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-zinc-400 uppercase tracking-wider">Job / Vehicle</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-zinc-400 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-zinc-400 uppercase tracking-wider">Cost</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-emerald-500/80 uppercase tracking-wider">Selling Price</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-zinc-400 uppercase tracking-wider">Margin</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-zinc-400 uppercase tracking-wider">ETA</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-surface-800">
               {filteredParts.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
+                  <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
                     No parts ordered yet.
                   </td>
                 </tr>
@@ -140,12 +147,6 @@ export default function Parts() {
                     <td className="px-6 py-4">
                       {part.job?.vehicle}
                     </td>
-                    <td className="px-6 py-4 text-zinc-400">
-                      {part.supplier}
-                    </td>
-                    <td className="px-6 py-4 font-mono text-zinc-400">
-                      {part.eta ? new Date(part.eta).toLocaleDateString() : 'TBD'}
-                    </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border ${
                         part.status === 'Ordered' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
@@ -158,6 +159,24 @@ export default function Parts() {
                         {part.status === 'Installed' && <CheckCircle size={14} />}
                         {part.status}
                       </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-zinc-50 font-medium">
+                        {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(part.cost)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 bg-emerald-500/5">
+                      <span className="text-emerald-400 font-bold">
+                        {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(calculateSellingPrice(part.cost))}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-zinc-400 text-sm font-medium bg-zinc-800/50 px-2 py-1 rounded">
+                        {calculateProfitMargin(part.cost, calculateSellingPrice(part.cost))}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 font-mono text-zinc-400">
+                      {part.eta ? new Date(part.eta).toLocaleDateString() : 'TBD'}
                     </td>
                   </tr>
                 ))

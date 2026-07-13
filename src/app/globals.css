@@ -82,3 +82,16 @@ body {
 }
 
 /* Font Faces (Simulated Geist/Outfit imports if not present, but we will use google fonts in index.html) */
+
+@media print {
+  body > * {
+    display: none !important;
+  }
+  body > div[data-radix-portal], 
+  body > div:has(.invoice-print-container) {
+    display: block !important;
+  }
+  .invoice-print-container {
+    display: block !important;
+  }
+}

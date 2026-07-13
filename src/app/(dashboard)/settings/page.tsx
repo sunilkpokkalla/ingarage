@@ -209,7 +209,7 @@ export default function Settings() {
             <div className="bg-zinc-950/50 border border-zinc-800/50 rounded-2xl p-6 h-fit">
               <h4 className="text-sm font-bold text-zinc-100 mb-4 font-['Outfit']">How to connect {provider === 'STRIPE' ? 'Stripe' : provider === 'PAYPAL' ? 'PayPal' : 'Square'}</h4>
               <ol className="list-decimal list-inside space-y-3 text-sm text-zinc-400">
-                <li>Create a <a href="#" target="_blank" rel="noreferrer" className="text-brand-400 hover:text-brand-300 underline">{provider === 'STRIPE' ? 'Stripe' : provider === 'PAYPAL' ? 'PayPal' : 'Square'} account</a>.</li>
+                <li>Create a <a href={provider === 'STRIPE' ? 'https://dashboard.stripe.com/register' : provider === 'PAYPAL' ? 'https://www.paypal.com/us/business' : 'https://squareup.com/signup'} target="_blank" rel="noreferrer" className="text-brand-400 hover:text-brand-300 underline">{provider === 'STRIPE' ? 'Stripe' : provider === 'PAYPAL' ? 'PayPal' : 'Square'} account</a>.</li>
                 <li>Go to Developers {'>'} API Keys to find your <strong>Client ID (Publishable)</strong> and <strong>Secret</strong> keys.</li>
                 <li>Go to Developers {'>'} Webhooks and add an endpoint pointing to <code className="bg-zinc-800 px-2 py-0.5 rounded font-mono text-xs text-zinc-300">https://yourdomain.com/api/webhooks/{provider.toLowerCase()}</code></li>
                 <li>Ensure the webhook listens to payment success and failure events.</li>
